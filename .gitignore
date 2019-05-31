@@ -1,0 +1,6 @@
+*.tif
+*.tiff
+*.bmp
+scratchpad.py
+__pycache__/
+.vscode/
