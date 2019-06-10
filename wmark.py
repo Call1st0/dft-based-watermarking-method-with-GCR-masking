@@ -27,6 +27,7 @@ import imageio
 from PIL import Image
 from scipy import fftpack
 import math
+from enum import Enum
 
 
 class WaterMark:
@@ -87,6 +88,39 @@ class WaterMark:
             fftpack.ifftshift(magnitude), np.exp(1j * phase)))
         img = np.real(img)  # Image still is complex so take only real part
         return img
+    
+    @staticmethod
+    def getMarkChannel(img):
+        """getter for channel used for embeding watermark
+        
+        Arguments:
+            img {[type]} -- [description]
+        
+        Raises:
+            TypeError: [description]
+            TypeError: [description]
+        
+        Returns:
+            [type] -- [description]
+        """
+         # check if the image is grayscale, RGB or CMYK image
+        if len(img.shape) == 2:
+            image_type='GRAY'
+            img_y = img
+        elif len(img.shape)==3:
+            if img.shape[2]== 4: #CMYK image
+                image_type='CMYK'
+                img_y = img[:,:,3]
+            elif img.shape[2]==3: #RBG image
+                image_type='RGB'
+                img_ycbcr = color.rgb2ycbcr(img)
+                img_y = img_ycbcr[:, :, 0]
+            else:
+                raise TypeError("Image has wrong number of channels. Only 3 or 4 channels allowed")
+        else:
+            raise TypeError("Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
+        
+        return img_y, image_type
 
     def embedMark(self, img, length=200, frequencies='MEDIUM', factor=5):
         """ Method for embeding watermark in magnitude spectrum of the image
@@ -103,33 +137,9 @@ class WaterMark:
             {ndarray} -- [description]
         """
 
-        # check if the image is grayscale, RGB or CMYK image
-        if len(img.shape) == 2:
-            image_type='GRAY'
-            img_y = img
-        elif len(img.shape)==3:
-            if img.shape[2]== 4: #CMYK image
-                image_type='CMYK'
-                img_y = img[:,:,3]
-            elif img.shape[2]==3: #RBG image
-                image_type='RGB'
-                img_ycbcr = color.rgb2ycbcr(img)
-                img_y = img_ycbcr[:, :, 0]
-            else:
-                raise TypeError("Image has wrong number of channels. Only 3 or 4 channels allowed")
-        else:
-            raise TypeError("Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
+        img_y, image_type = WaterMark.getMarkChannel(img)
 
-        # define radius for wanted zone
-        if frequencies == 'LOW':
-            radius = 1/8*(img_y.shape[0])
-        elif frequencies == 'MEDIUM':
-            radius = 1/4*(img_y.shape[0])
-        elif frequencies == 'HIGH':
-            radius = 3/8*(img_y.shape[0])
-        else:
-            raise AttributeError(
-                "Unknown frequency zone. Use 'LOW', 'MEDIUM', or 'HIGH' ")
+        radius = WaterMark.frequency2Radius(img,frequencies)
 
         # Generate prnd sequence
         mark = self.pseudoGen(length)
@@ -187,3 +197,115 @@ class WaterMark:
 
         # return image as uint8
         return skimage.img_as_ubyte(img_m)
+    
+    def decodeMark(self, img, length=200, frequencies='MEDIUM'):
+               
+        #TODO finish decodeMark method
+        img_y, image_type = WaterMark.getMarkChannel(img)
+        mark = self.pseudoGen(length)
+        radius = WaterMark.frequency2Radius(img,frequencies)
+
+        corr = np.zeros((1,32))
+        for ind in range(int(radius-16), int(radius+16)):
+            counter = 0
+            vec = WaterMark.extractMark(img_y,ind)
+            reshapedMark = WaterMark.generateReshapedMark(mark,img_y,ind)
+            corr[counter]=WaterMark.correlateMark(reshapedMark,vec)
+            counter+=1
+        
+        return np.amax(corr)
+
+    @staticmethod
+    def extractMark(img, radius): 
+        """ Method for extracting vector from the ndarray given the radius
+
+        Arguments:
+            img {ndarray} -- host ndarray
+            radius {int} -- radius at which to extract vector
+
+        Returns:
+            {ndarray} -- Extracted vector
+        """
+        # step between coefficients used for embedding.
+        step = math.pi/(2*math.asin(1/(2*radius)))
+        vec = np.zeros(math.ceil(step))
+        mask = np.zeros((3,3))
+
+        for ind in range(math.ceil(step)):
+            x1 = int((img.shape[0]/2) +
+                     np.around(radius*math.cos(ind*math.pi/step)))
+            y1 = int((img.shape[0]/2) +
+                     np.around(radius*math.sin(ind*math.pi/step)))
+            
+            for ind_m_x in range(3):
+                for ind_m_y in range(3):
+                    mask[ind_m_x, ind_m_y] = img[(
+                        x1-1+ind_m_x), (y1-1+ind_m_y)]
+            vec[ind]=np.amax(mask)
+        return vec
+
+    def generateReshapedMark(mark,img,radius = 128):
+
+        watermark_mask = np.zeros(img.shape)
+        length = len(mark)
+        
+        for ind in range(length):
+            x1 = int((img.shape[0]/2) +
+                     np.around(radius*math.cos(ind*math.pi/length)))
+            y1 = int((img.shape[0]/2) +
+                     np.around(radius*math.sin(ind*math.pi/length)))
+        
+            watermark_mask[x1, y1] = mark[ind]
+
+        return WaterMark.extractMark(watermark_mask,radius)
+    
+    def frequency2Radius(img, frequencies):
+        """convert frequency to radius
+        
+        Arguments:
+            img {[type]} -- image
+            frequency {str} -- 'LOW', 'MEDIUM' or 'HIGH'
+        
+        Raises:
+            AttributeError: Raises if wrong frequency zone is passed
+        
+        Returns:
+            [float] -- radius representing provided frequency zone
+        """
+        # define radius for wanted zone
+        if frequencies == 'LOW':
+            radius = 1/8*(img.shape[0])
+        elif frequencies == 'MEDIUM':
+            radius = 1/4*(img.shape[0])
+        elif frequencies == 'HIGH':
+            radius = 3/8*(img.shape[0])
+        else:
+            raise AttributeError(
+                "Unknown frequency zone. Use 'LOW', 'MEDIUM', or 'HIGH' ")
+        
+        return radius
+
+
+    @staticmethod
+    def correlateMark(mark,vector):
+        """Cross correlation of two 1D sequences that are first made zero-mean
+        
+        Arguments:
+            mark {ndarray} -- array like input sequences
+            vector {ndarray} -- array like input sequences
+        
+        Returns:
+            ndarray -- scalar, maximum of full cross correlation of two args
+        """
+        # normalize to zero mean
+        mark = mark - np.mean(mark)
+        vector = vector - np.mean(vector)
+        corr=np.correlate(mark,vector,mode='full')
+        return np.amax(corr)
+
+# class Freq_zone(Enum):
+#     """ Enum for choosing frequency zones for encoding or decoding wmark
+#     """
+#     HIGH = 3/8
+#     MEDIUM = 1/2
+#     LOW = 1/8
