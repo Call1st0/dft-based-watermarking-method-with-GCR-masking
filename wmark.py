@@ -20,6 +20,7 @@
 import skimage
 import skimage.measure as msr
 import skimage.color as color
+import skimage.transform as trs
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -80,7 +81,7 @@ class WaterMark:
     def pseudoGen(self, length):
         """ Takes lenght and returns binary pseudorandom vector of that length """
         np.random.seed(self.seed)
-        return np.random.randint(2, size=(length, ))
+        return np.random.randint(2, size=(length, 1)).astype(np.float32)
 
     def outputProc(self, magnitude, phase):
         """ Takes magnitude and phase of the image and returns img in spatial domain"""
@@ -88,38 +89,40 @@ class WaterMark:
             fftpack.ifftshift(magnitude), np.exp(1j * phase)))
         img = np.real(img)  # Image still is complex so take only real part
         return img
-    
+
     @staticmethod
     def getMarkChannel(img):
         """getter for channel used for embeding watermark
-        
+
         Arguments:
             img {[type]} -- [description]
-        
+
         Raises:
             TypeError: [description]
             TypeError: [description]
-        
+
         Returns:
             [type] -- [description]
         """
-         # check if the image is grayscale, RGB or CMYK image
+        # check if the image is grayscale, RGB or CMYK image
         if len(img.shape) == 2:
-            image_type='GRAY'
+            image_type = 'GRAY'
             img_y = img
-        elif len(img.shape)==3:
-            if img.shape[2]== 4: #CMYK image
-                image_type='CMYK'
-                img_y = img[:,:,3]
-            elif img.shape[2]==3: #RBG image
-                image_type='RGB'
+        elif len(img.shape) == 3:
+            if img.shape[2] == 4:  # CMYK image
+                image_type = 'CMYK'
+                img_y = img[:, :, 3]
+            elif img.shape[2] == 3:  # RBG image
+                image_type = 'RGB'
                 img_ycbcr = color.rgb2ycbcr(img)
                 img_y = img_ycbcr[:, :, 0]
             else:
-                raise TypeError("Image has wrong number of channels. Only 3 or 4 channels allowed")
+                raise TypeError(
+                    "Image has wrong number of channels. Only 3 or 4 channels allowed")
         else:
-            raise TypeError("Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
-        
+            raise TypeError(
+                "Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
+
         return img_y, image_type
 
     def embedMark(self, img, length=200, frequencies='MEDIUM', factor=5):
@@ -139,7 +142,7 @@ class WaterMark:
 
         img_y, image_type = WaterMark.getMarkChannel(img)
 
-        radius = WaterMark.frequency2Radius(img,frequencies)
+        radius = WaterMark.frequency2Radius(img, frequencies)
 
         # Generate prnd sequence
         mark = self.pseudoGen(length)
@@ -183,40 +186,42 @@ class WaterMark:
         img_y_marked = self.outputProc(magnitude_m, phase)
 
         if image_type == 'RGB':
+            img_ycbcr = color.rgb2ycbcr(img)
             img_ycbcr_m = np.dstack((img_y_marked, img_ycbcr[:, :, 1:]))
             img_m = color.ycbcr2rgb(img_ycbcr_m)
         elif image_type == 'CMYK':
-            img_m = np.dstack((img[:,:,0:3], img_y_marked))
+            img_m = np.dstack((img[:, :, 0:3], img_y_marked))
         else:
             img_m = img_y_marked
 
-        #TODO this processing will change the data of unprocessed channels too. Figure out a way to fix that
+        # TODO this processing will change the data of unprocessed channels too. Figure out a way to fix that
         # check if image is in the -1 , 1 interval
         if np.amax(img_m) > 1:
             img_m = img_m/np.amax(img_m)
 
         # return image as uint8
         return skimage.img_as_ubyte(img_m)
-    
-    def decodeMark(self, img, length=200, frequencies='MEDIUM'):
-               
-        #TODO finish decodeMark method
-        img_y, image_type = WaterMark.getMarkChannel(img)
-        mark = self.pseudoGen(length)
-        radius = WaterMark.frequency2Radius(img,frequencies)
 
-        corr = np.zeros((1,32))
+    def decodeMark(self, img, length=200, frequencies='MEDIUM'):
+
+        img_y, image_type = WaterMark.getMarkChannel(img)
+        magnitude, phase = self.inputProc(img_y)
+
+        mark = self.pseudoGen(length)
+        radius = WaterMark.frequency2Radius(img, frequencies)
+
+        corr = np.zeros(32)
+        counter = 0
         for ind in range(int(radius-16), int(radius+16)):
-            counter = 0
-            vec = WaterMark.extractMark(img_y,ind)
-            reshapedMark = WaterMark.generateReshapedMark(mark,img_y,ind)
-            corr[counter]=WaterMark.correlateMark(reshapedMark,vec)
-            counter+=1
-        
+            vec = WaterMark.extractMark(magnitude, ind)
+            reshapedMark = WaterMark.generateReshapedMark(mark, magnitude, ind)
+            corr[counter] = WaterMark.covarMark(reshapedMark, vec)
+            counter += 1
+
         return np.amax(corr)
 
     @staticmethod
-    def extractMark(img, radius): 
+    def extractMark(img, radius):
         """ Method for extracting vector from the ndarray given the radius
 
         Arguments:
@@ -228,47 +233,47 @@ class WaterMark:
         """
         # step between coefficients used for embedding.
         step = math.pi/(2*math.asin(1/(2*radius)))
-        vec = np.zeros(math.ceil(step))
-        mask = np.zeros((3,3))
+        vec = np.zeros((math.ceil(step), 1))
+        mask = np.zeros((3, 3))
 
         for ind in range(math.ceil(step)):
             x1 = int((img.shape[0]/2) +
                      np.around(radius*math.cos(ind*math.pi/step)))
             y1 = int((img.shape[0]/2) +
                      np.around(radius*math.sin(ind*math.pi/step)))
-            
+
             for ind_m_x in range(3):
                 for ind_m_y in range(3):
                     mask[ind_m_x, ind_m_y] = img[(
                         x1-1+ind_m_x), (y1-1+ind_m_y)]
-            vec[ind]=np.amax(mask)
+            vec[ind, 0] = np.amax(mask)
         return vec
 
-    def generateReshapedMark(mark,img,radius = 128):
+    def generateReshapedMark(mark, img, radius=128):
 
         watermark_mask = np.zeros(img.shape)
         length = len(mark)
-        
+
         for ind in range(length):
             x1 = int((img.shape[0]/2) +
                      np.around(radius*math.cos(ind*math.pi/length)))
             y1 = int((img.shape[0]/2) +
                      np.around(radius*math.sin(ind*math.pi/length)))
-        
+
             watermark_mask[x1, y1] = mark[ind]
 
-        return WaterMark.extractMark(watermark_mask,radius)
-    
+        return WaterMark.extractMark(watermark_mask, radius)
+
     def frequency2Radius(img, frequencies):
         """convert frequency to radius
-        
+
         Arguments:
             img {[type]} -- image
             frequency {str} -- 'LOW', 'MEDIUM' or 'HIGH'
-        
+
         Raises:
             AttributeError: Raises if wrong frequency zone is passed
-        
+
         Returns:
             [float] -- radius representing provided frequency zone
         """
@@ -282,30 +287,21 @@ class WaterMark:
         else:
             raise AttributeError(
                 "Unknown frequency zone. Use 'LOW', 'MEDIUM', or 'HIGH' ")
-        
+
         return radius
 
-
     @staticmethod
-    def correlateMark(mark,vector):
+    def covarMark(mark, vector):
         """Cross correlation of two 1D sequences that are first made zero-mean
-        
+
         Arguments:
             mark {ndarray} -- array like input sequences
             vector {ndarray} -- array like input sequences
-        
+
         Returns:
             ndarray -- scalar, maximum of full cross correlation of two args
         """
         # normalize to zero mean
         mark = mark - np.mean(mark)
         vector = vector - np.mean(vector)
-        corr=np.correlate(mark,vector,mode='full')
-        return np.amax(corr)
-
-# class Freq_zone(Enum):
-#     """ Enum for choosing frequency zones for encoding or decoding wmark
-#     """
-#     HIGH = 3/8
-#     MEDIUM = 1/2
-#     LOW = 1/8
+        return (np.cov(mark[:, 0], vector[:, 0])[0][1])  # return np.amax(corr)
