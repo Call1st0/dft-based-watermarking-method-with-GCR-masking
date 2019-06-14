@@ -203,7 +203,18 @@ class WaterMark:
         return skimage.img_as_ubyte(img_m)
 
     def decodeMark(self, img, length=200, frequencies='MEDIUM'):
-
+        """Method for extracting ana decoding hidden watermark
+        
+        Arguments:
+            img {ndarray} -- host image
+        
+        Keyword Arguments:
+            length {int} -- length of embeded (watermark) 1D vector  (default: {200})
+            frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
+        
+        Returns:
+            float -- correlation value of the extracted vector and generated watermark
+        """
         img_y, image_type = WaterMark.getMarkChannel(img)
         magnitude, phase = self.inputProc(img_y)
 
@@ -250,7 +261,18 @@ class WaterMark:
         return vec
 
     def generateReshapedMark(mark, img, radius=128):
-
+        """Generator for watermark mask
+        
+        Arguments:
+            mark {ndarray} -- 1D PRND vector generated using pseudoGen method
+            img {ndarray} -- host image
+        
+        Keyword Arguments:
+            radius {int} -- radius at which to embed PRND vector (default: {128})
+        
+        Returns:
+            [type] -- [description]
+        """
         watermark_mask = np.zeros(img.shape)
         length = len(mark)
 
@@ -268,14 +290,14 @@ class WaterMark:
         """convert frequency to radius
 
         Arguments:
-            img {[type]} -- image
+            img {ndarray} -- image
             frequency {str} -- 'LOW', 'MEDIUM' or 'HIGH'
 
         Raises:
             AttributeError: Raises if wrong frequency zone is passed
 
         Returns:
-            [float] -- radius representing provided frequency zone
+            float -- radius representing provided frequency zone
         """
         # define radius for wanted zone
         if frequencies == 'LOW':
@@ -299,9 +321,29 @@ class WaterMark:
             vector {ndarray} -- array like input sequences
 
         Returns:
-            ndarray -- scalar, maximum of full cross correlation of two args
+            ndarray -- 1D vector of full cross correlation of two args
         """
         # normalize to zero mean
         mark = mark - np.mean(mark)
         vector = vector - np.mean(vector)
-        return (np.cov(mark[:, 0], vector[:, 0])[0][1])  # return np.amax(corr)
+        return (np.cov(mark[:, 0], vector[:, 0])[0][1])  
+
+    def isReplaceable(img, repCMYmin, repKmax=100):
+        """Checks if pixels in an image can be GCR-d
+        
+        Arguments:
+            im {ndarray} -- image
+            repCMYmin {float} -- minimal value for CMY to be considered replacable
+            repKmax {float} -- maximum value of K to be considered replacable 
+        
+        Returns:
+            ndarray -- array of bools with the same shape as img inidicating replacebility
+        """
+
+        img = np.ndarray.astype(img, dtype=float)
+        imsh0 = img.shape[0]
+        imsh1 = img.shape[1]
+        img = img.reshape(np.int((imsh0*imsh1)), img.shape[2])
+        rpl = np.logical_and(np.logical_and(np.logical_and(img[:, 0]/2.55 > repCMYmin, img[:, 1]/2.55 > repCMYmin),
+                                            img[:, 2]/2.55 > repCMYmin), img[:, 3]/2.55 < repKmax)
+        return rpl.reshape((imsh0, imsh1))
