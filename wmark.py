@@ -95,14 +95,14 @@ class WaterMark:
         """getter for channel used for embeding watermark
 
         Arguments:
-            img {[type]} -- [description]
+            img {ndarray} -- host image
 
         Raises:
-            TypeError: [description]
-            TypeError: [description]
+            TypeError: raised if image has wrong number of channels
 
         Returns:
-            [type] -- [description]
+            ndarray -- channel in which to embed watermark
+            str -- image type 'GRAY', 'CMYK', 'RGB'
         """
         # check if the image is grayscale, RGB or CMYK image
         if len(img.shape) == 2:
@@ -137,7 +137,7 @@ class WaterMark:
             factor {int} -- implementation strength (default: {5})
 
         Returns:
-            {ndarray} -- [description]
+            {ndarray} -- image with embedded watermark
         """
 
         img_y, image_type = WaterMark.getMarkChannel(img)
@@ -213,7 +213,7 @@ class WaterMark:
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
         
         Returns:
-            float -- correlation value of the extracted vector and generated watermark
+            {float} -- correlation value of the extracted vector and generated watermark
         """
         img_y, image_type = WaterMark.getMarkChannel(img)
         magnitude, phase = self.inputProc(img_y)
@@ -271,7 +271,7 @@ class WaterMark:
             radius {int} -- radius at which to embed PRND vector (default: {128})
         
         Returns:
-            [type] -- [description]
+            {ndarray} -- watermark mask created with PRND vector embedded to given radius
         """
         watermark_mask = np.zeros(img.shape)
         length = len(mark)
@@ -294,10 +294,10 @@ class WaterMark:
             frequency {str} -- 'LOW', 'MEDIUM' or 'HIGH'
 
         Raises:
-            AttributeError: Raises if wrong frequency zone is passed
+            AttributeError: Raised if wrong frequency zone is passed
 
         Returns:
-            float -- radius representing provided frequency zone
+            {float} -- radius representing provided frequency zone
         """
         # define radius for wanted zone
         if frequencies == 'LOW':
@@ -321,7 +321,7 @@ class WaterMark:
             vector {ndarray} -- array like input sequences
 
         Returns:
-            ndarray -- 1D vector of full cross correlation of two args
+            {ndarray} -- 1D vector of full cross correlation of two args
         """
         # normalize to zero mean
         mark = mark - np.mean(mark)
@@ -337,7 +337,7 @@ class WaterMark:
             repKmax {float} -- maximum value of K to be considered replacable 
         
         Returns:
-            ndarray -- array of bools with the same shape as img inidicating replacebility
+            {ndarray} -- array of bools with the same shape as img inidicating replacebility
         """
 
         img = np.ndarray.astype(img, dtype=float)
