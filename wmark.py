@@ -180,8 +180,8 @@ class WaterMark:
             watermark_mask[x2, y2] = mark[ind]*np.mean(mask_down)
 
         # add watermark mask multiplied by factor to the original magnitude
-        magnitude_m = magnitude+factor*watermark_mask
-
+        magnitude_m = magnitude+factor*watermark_mask #TODO modify code to beter use implementation factor maybe use mean magnitude of an image
+    
         # Transformation to Spatial domain
         img_y_marked = self.outputProc(magnitude_m, phase)
 
@@ -347,3 +347,34 @@ class WaterMark:
         rpl = np.logical_and(np.logical_and(np.logical_and(img[:, 0]/2.55 > repCMYmin, img[:, 1]/2.55 > repCMYmin),
                                             img[:, 2]/2.55 > repCMYmin), img[:, 3]/2.55 < repKmax)
         return rpl.reshape((imsh0, imsh1))
+    
+    def findImpactFactor(self, img, rangePSNR=(40,45), length=200, frequencies='MEDIUM'):
+        """find impact factor that will return PSNR quality in given range
+        
+        Arguments:
+            img {ndarraj} -- host image
+        
+        Keyword Arguments:
+            rangePSNR {tuple of ints} -- range in dB (default: {(40,45)})
+            length {int} -- length of embedded 1D vector (default: {200})
+            frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
+        
+        Returns:
+            [float] -- impact factor for which encoded image will have given quality
+        """
+        impactFactor = 5
+        psnrMarked=0
+        imgMarked = np.zeros(img.shape)
+        while True:
+            imgMarked = self.embedMark(img,length,frequencies,impactFactor)
+            psnrMarked = msr.compare_psnr(img, imgMarked)
+            ssimMarked = msr.compare_ssim(img, imgMarked,multichannel=True)
+            print(f'PSNR: {psnrMarked:.2f}, SSIM: {ssimMarked:.2f}, Factor : {impactFactor}')
+
+            if rangePSNR[0] <= psnrMarked <= rangePSNR[1]:
+                break  #break out of while loop
+            elif psnrMarked > rangePSNR[0]:
+                impactFactor*=2
+            else:
+                impactFactor*=0.5
+        return impactFactor
