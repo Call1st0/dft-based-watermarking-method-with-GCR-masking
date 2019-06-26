@@ -25,7 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import imageio
-from PIL import Image
+from PIL import Image, ImageCms
 from scipy import fftpack
 import math
 from enum import Enum
@@ -378,3 +378,10 @@ class WaterMark:
             else:
                 impactFactor*=0.5
         return impactFactor
+
+    @staticmethod
+    def profileCmyk2lab(img,profileCmyk):
+        pilImage = Image.fromarray(img)
+        labProfile = ImageCms.createProfile('LAB')
+        cform = ImageCms.buildTransform(profileCmyk, labProfile, 'CMYK', 'LAB', renderingIntent=1)
+        return ImageCms.applyTransform(img,cform)
