@@ -29,6 +29,7 @@ from PIL import Image, ImageCms
 from scipy import fftpack
 import math
 from enum import Enum
+import pandas as pd
 
 
 class WaterMark:
@@ -47,10 +48,10 @@ class WaterMark:
         # ax = axes.ravel()
 
         psnr_orig = msr.compare_psnr(originalImg, originalImg)
-        ssim_orig = msr.compare_ssim(originalImg, originalImg)
+        ssim_orig = msr.compare_ssim(originalImg, originalImg, multichannel = True)
 
         psnr_mod = msr.compare_psnr(originalImg, modifiedImg)
-        ssim_mod = msr.compare_ssim(originalImg, modifiedImg)
+        ssim_mod = msr.compare_ssim(originalImg, modifiedImg, multichannel = True)
 
         label = 'PSNR: {:.2f}, SSIM: {:.2f}'
 
@@ -64,7 +65,8 @@ class WaterMark:
 
         plt.show()
 
-    def imread(self, imgName):
+    @staticmethod
+    def imread(imgName):
         """ read image and return np array """
         return np.array(Image.open(imgName))
 
@@ -260,6 +262,46 @@ class WaterMark:
             vec[ind, 0] = np.amax(mask)
         return vec
 
+    @staticmethod
+    def impactFactor_PSNR_SSIM(img, max_impact, steps, seed):
+        """ Method for calculating dependency between Impact Factor and PSNR/SSIM
+
+        Arguments:
+            img {?} -- original (input) image
+            max_impact {int} -- maximum value of Impact Factor
+            steps {int} -- jump between two Impact Factor values
+            seed {int} -- pseudo-random; for decoding
+
+        Returns:
+            pd.DataFrame -- Impact Factor, PSNR, SSIM values displayed in a single dataframe
+        """
+        watermark_object = WaterMark(seed)
+        range_max = int(max_impact / steps) + 1
+        results = np.zeros([range_max, 3])
+        impact_factor = range(0, max_impact, steps)
+    
+        # pandas_dataframe_empty = pd.DataFrame()
+
+        for index in range(0, range_max):
+            img_marked = watermark_object.embedMark(img, factor = impact_factor[index])
+            psnr_value = msr.compare_psnr(img, img_marked)
+            ssim_value = msr.compare_ssim(img, img_marked, multichannel = True)
+
+            results[index, 0] = impact_factor[index]
+            results[index, 1] = psnr_value
+            results[index, 2] = ssim_value
+
+            results_all = results[index, 0], results[index, 1], results[index, 2]
+            # print(results_all)
+
+        pandas_array = ['Impact Factor', 'PSNR', 'SSIM']
+        return pd.DataFrame(results, columns = pandas_array)
+
+        # pandas_dataframe_IF = pandas_dataframe['Impact Factor']
+        # pandas_dataframe_PSNR = pandas_dataframe['PSNR']
+
+        # return pd.concat([pandas_dataframe_IF, pandas_dataframe_PSNR], axis= 1)
+
     def generateReshapedMark(mark, img, radius=128):
         """Generator for watermark mask
         
@@ -352,7 +394,7 @@ class WaterMark:
         """find impact factor that will return PSNR quality in given range
         
         Arguments:
-            img {ndarraj} -- host image
+            img {ndarray} -- host image
         
         Keyword Arguments:
             rangePSNR {tuple of ints} -- range in dB (default: {(40,45)})
