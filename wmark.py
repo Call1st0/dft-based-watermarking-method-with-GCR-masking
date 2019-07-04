@@ -223,9 +223,9 @@ class WaterMark:
         mark = self.pseudoGen(length)
         radius = WaterMark.frequency2Radius(img, frequencies)
 
-        corr = np.zeros(32)
+        corr = np.zeros(64)
         counter = 0
-        for ind in range(int(radius-16), int(radius+16)):
+        for ind in range(int(radius-32), int(radius+32)):
             vec = WaterMark.extractMark(magnitude, ind)
             reshapedMark = WaterMark.generateReshapedMark(mark, magnitude, ind)
             corr[counter] = WaterMark.covarMark(reshapedMark, vec)
@@ -263,22 +263,25 @@ class WaterMark:
         return vec
 
     @staticmethod
-    def impactFactor_PSNR_SSIM(img, max_impact, steps, seed):
+    def impactFactor_PSNR_SSIM(img, seed, min_impact = 0.75, max_impact = 4, steps = 25):
         """ Method for calculating dependency between Impact Factor and PSNR/SSIM
 
         Arguments:
-            img {?} -- original (input) image
-            max_impact {int} -- maximum value of Impact Factor
-            steps {int} -- jump between two Impact Factor values
+            img {ndarray} -- original (input) image
+            min_impact {int} -- minimum logarithmic value of Impact Factor (default: {0.75})
+            max_impact {int} -- maximum logarithmic value of Impact Factor (default: {4})
+            steps {int} -- jump between two Impact Factor values (default: {25})
             seed {int} -- pseudo-random; for decoding
 
         Returns:
-            pd.DataFrame -- Impact Factor, PSNR, SSIM values displayed in a single dataframe
+            pd.DataFrame -- Impact Factor, PSNR, SSIM as a single Pandas DataFrame
         """
         watermark_object = WaterMark(seed)
-        range_max = int(max_impact / steps) + 1
+        range_max = int(steps)
+        # range_max = int(max_impact / steps) + 1
         results = np.zeros([range_max, 3])
-        impact_factor = range(0, max_impact, steps)
+        impact_factor = np.logspace(min_impact, max_impact, num=steps)
+        # impact_factor = range(0, max_impact, steps)
     
         # pandas_dataframe_empty = pd.DataFrame()
 
@@ -296,11 +299,6 @@ class WaterMark:
 
         pandas_array = ['Impact Factor', 'PSNR', 'SSIM']
         return pd.DataFrame(results, columns = pandas_array)
-
-        # pandas_dataframe_IF = pandas_dataframe['Impact Factor']
-        # pandas_dataframe_PSNR = pandas_dataframe['PSNR']
-
-        # return pd.concat([pandas_dataframe_IF, pandas_dataframe_PSNR], axis= 1)
 
     def generateReshapedMark(mark, img, radius=128):
         """Generator for watermark mask
@@ -404,19 +402,19 @@ class WaterMark:
         Returns:
             [float] -- impact factor for which encoded image will have given quality
         """
-        impactFactor = 5
+        impactFactor = 100
         psnrMarked=0
         imgMarked = np.zeros(img.shape)
         while True:
             imgMarked = self.embedMark(img,length,frequencies,impactFactor)
             psnrMarked = msr.compare_psnr(img, imgMarked)
             ssimMarked = msr.compare_ssim(img, imgMarked,multichannel=True)
-            print(f'PSNR: {psnrMarked:.2f}, SSIM: {ssimMarked:.2f}, Factor : {impactFactor}')
+            # print(f'PSNR: {psnrMarked:.2f}, SSIM: {ssimMarked:.2f}, Factor : {impactFactor}')
 
             if rangePSNR[0] <= psnrMarked <= rangePSNR[1]:
                 break  #break out of while loop
             elif psnrMarked > rangePSNR[0]:
-                impactFactor*=2
+                impactFactor*=1.9
             else:
-                impactFactor*=0.5
+                impactFactor*=0.45
         return impactFactor
