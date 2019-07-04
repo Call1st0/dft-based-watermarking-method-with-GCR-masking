@@ -25,7 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import imageio
-from PIL import Image
+from PIL import Image, ImageCms
 from scipy import fftpack
 import math
 from enum import Enum
@@ -418,3 +418,27 @@ class WaterMark:
             else:
                 impactFactor*=0.45
         return impactFactor
+
+    # TODO the method covert image to lab but accuracy is low. 
+    @staticmethod
+    def profileCmyk2lab(img,profileCmyk):
+        pilImg = Image.fromarray(img)
+        labProfile = ImageCms.createProfile('LAB')
+        cform = ImageCms.buildTransform(profileCmyk, labProfile, 'CMYK', 'LAB', renderingIntent=1)
+        return np.array(ImageCms.applyTransform(pilImg,cform))
+
+    @staticmethod
+    def profileCmyk2srgb(img,profileCmyk):
+        """convert from CMYK to sRGB color space using Cmyk profile
+        
+        Arguments:
+            img {ndarray} -- image in CMYK color space
+            profileCmyk {string} -- path to cmyk profile
+        
+        Returns:
+            ndarray -- image in sRGB color space
+        """
+        pilImg = Image.fromarray(img)
+        srgbProfile = ImageCms.createProfile('sRGB')
+        cform = ImageCms.buildTransform(profileCmyk, srgbProfile, 'CMYK', 'RGB', renderingIntent=1)
+        return np.array(ImageCms.applyTransform(pilImg,cform))
