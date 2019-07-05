@@ -294,7 +294,7 @@ class WaterMark:
             results[index, 1] = psnr_value
             results[index, 2] = ssim_value
 
-            results_all = results[index, 0], results[index, 1], results[index, 2]
+            # results_all = results[index, 0], results[index, 1], results[index, 2]
             # print(results_all)
 
         pandas_array = ['Impact Factor', 'PSNR', 'SSIM']
