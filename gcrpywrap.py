@@ -13,8 +13,6 @@ import timeit
 import ctypes
 from ctypes import cdll
 # from ctypes import windll
-import os.path
-import sys
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 

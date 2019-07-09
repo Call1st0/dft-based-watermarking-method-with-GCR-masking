@@ -7,8 +7,7 @@ import time
 import timeit
 import ctypes
 from ctypes import cdll
-import os.path
-import sys
+from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import gcrpywrap as gw
@@ -35,8 +34,12 @@ class wmgcr:
     self.prof_name = prof_name
 
 	# Setup CMYK->Lab transform
-    self.profpath = os.path.dirname(sys.modules['__main__'].__file__) + "/" + self.prof_name
-    self.cfAtoB = gw.cform(self.profpath, 'AtoB1')
+    self.profpath = Path('profiles/' + self.prof_name)
+    if not self.profpath.exists():
+        raise FileNotFoundError(self.profpath.name + ' does not exist in the profiles/ folder')
+        pass
+    else:
+        self.cfAtoB = gw.cform(self.profpath.resolve().as_posix(), 'AtoB1')
 
 	# Permutations of CMYK values
     import itertools
@@ -201,7 +204,7 @@ class wmgcr:
     rpl = rpl.reshape((np.size(pix, 0), np.size(pix, 1)))
     return im_new
 
-  def isreplacable(self, im, Krng, repCMYmin, repKmax=100):
+  def isReplaceable(self, im, Krng, repCMYmin, repKmax=100):
     im = np.ndarray.astype(im, dtype=ctypes.c_double)
     pix=im
     pix_dbl = np.ndarray.astype(pix, dtype=ctypes.c_double)
