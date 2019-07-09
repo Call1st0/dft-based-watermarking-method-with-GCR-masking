@@ -357,33 +357,18 @@ class WaterMark:
 
         return radius
 
-    @staticmethod
-    def staticCovarMark(mark, vector):
-        """Cross correlation of two 1D sequences that are first made zero-mean
-
-        Arguments:
-            mark {ndarray} -- array like input sequences
-            vector {ndarray} -- array like input sequences
-
-        Returns:
-            {ndarray} -- 1D vector of full cross correlation of two args
-        """
-        # normalize to zero mean
-        mark = mark - np.mean(mark)
-        vector = vector - np.mean(vector)
-        return (np.cov(mark[:, 0], vector[:, 0])[0][1])
-
     #TODO Make mark and vector real 1D-arrays, instead of 2D-arrays with empty 2nd dim.
     @staticmethod
     def covarMark(mark, vector):
-        """Cross covariation of two 1D sequences that are first made zero-mean
+        """Cross covariation of two 1D sequences. Measures the similarity between two vectors 
+        by shifting (lagging) second vector as a function of the lag.
 
         Arguments:
             mark {ndarray} -- array like input sequences
             vector {ndarray} -- array like input sequences
 
         Returns:
-            {ndarray} -- 1D vector of full cross correlation of two args
+            {ndarray} -- 1D vector of full cross covariation of two args
         """
         # normalize to zero mean
         mark = mark - np.mean(mark)
@@ -402,7 +387,8 @@ class WaterMark:
 
     @staticmethod
     def corrMark(mark, vector):
-        """Cross correlation of two 1D sequences that are first made zero-mean
+        """Cross correlation of two 1D sequences. Measures the similarity between two vectors 
+        by shifting (lagging) second vector as a function of the lag.
 
         Arguments:
             mark {ndarray} -- array like input sequences
@@ -428,14 +414,14 @@ class WaterMark:
 
     @staticmethod
     def xcorrMark(mark, vector):
-        """Cross correlation of two 1D sequences that are first made zero-mean
+        """Plots the cross correlation of two 1D sequences that are first made zero-mean.
 
         Arguments:
             mark {ndarray} -- array like input sequences
             vector {ndarray} -- array like input sequences
 
         Returns:
-            {ndarray} -- 1D vector of full cross correlation of two args
+            {ndarray} -- Plot of full cross correlation of two args
         """
         # normalize to zero mean
         mark = mark - np.mean(mark)
