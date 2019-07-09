@@ -30,6 +30,7 @@ from scipy import fftpack
 import math
 from enum import Enum
 import pandas as pd
+import wmgcr
 
 
 class WaterMark:
@@ -442,25 +443,25 @@ class WaterMark:
         correlation = plt.xcorr(mark[:, 0], vector[:, 0])
         return correlation
 
-    def isReplaceable(img, repCMYmin, repKmax=100):
-        """Checks if pixels in an image can be GCR-d
+    # def isReplaceable(img, repCMYmin, repKmax=100):
+    #     """Checks if pixels in an image can be GCR-d
         
-        Arguments:
-            im {ndarray} -- image
-            repCMYmin {float} -- minimal value for CMY to be considered replacable
-            repKmax {float} -- maximum value of K to be considered replacable 
+    #     Arguments:
+    #         im {ndarray} -- image
+    #         repCMYmin {float} -- minimal value for CMY to be considered replacable
+    #         repKmax {float} -- maximum value of K to be considered replacable 
         
-        Returns:
-            {ndarray} -- array of bools with the same shape as img inidicating replacebility
-        """
+    #     Returns:
+    #         {ndarray} -- array of bools with the same shape as img inidicating replacebility
+    #     """
 
-        img = np.ndarray.astype(img, dtype=float)
-        imsh0 = img.shape[0]
-        imsh1 = img.shape[1]
-        img = img.reshape(np.int((imsh0*imsh1)), img.shape[2])
-        rpl = np.logical_and(np.logical_and(np.logical_and(img[:, 0]/2.55 > repCMYmin, img[:, 1]/2.55 > repCMYmin),
-                                            img[:, 2]/2.55 > repCMYmin), img[:, 3]/2.55 < repKmax)
-        return rpl.reshape((imsh0, imsh1))
+    #     img = np.ndarray.astype(img, dtype=float)
+    #     imsh0 = img.shape[0]
+    #     imsh1 = img.shape[1]
+    #     img = img.reshape(np.int((imsh0*imsh1)), img.shape[2])
+    #     rpl = np.logical_and(np.logical_and(np.logical_and(img[:, 0]/2.55 > repCMYmin, img[:, 1]/2.55 > repCMYmin),
+    #                                         img[:, 2]/2.55 > repCMYmin), img[:, 3]/2.55 < repKmax)
+    #     return rpl.reshape((imsh0, imsh1,4))
     
     def findImpactFactor(self, img, rangePSNR=(40,45), length=200, frequencies='MEDIUM'):
         """find impact factor that will return PSNR quality in given range
@@ -515,3 +516,20 @@ class WaterMark:
         srgbProfile = ImageCms.createProfile('sRGB')
         cform = ImageCms.buildTransform(profileCmyk, srgbProfile, 'CMYK', 'RGB', renderingIntent=1)
         return np.array(ImageCms.applyTransform(pilImg,cform))
+
+    @staticmethod
+    def gcrMasking(orig, marked, profileName='ISOcoated_v2_eci.icc'):
+        """GCR based method for masking artefacts introduced by watermark
+        
+        Arguments:
+            orig {ndarray} -- original image in CMYK color space
+            marked {ndarray} -- marked image in CMYK color space
+            profileName {string} -- icc profile neaded for calculation (default: {'ISOcoated_v2_eci.icc'})
+        
+        Returns:
+            ndarray -- masked image
+        """
+        gcrmask = wmgcr.wmgcr(profileName)
+        rpl = gcrmask.isReplaceable(orig,15,0) 
+        imgMasked = gcrmask.transformImage(orig, marked, rpl)
+        gcrmask.delete()
