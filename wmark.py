@@ -204,13 +204,14 @@ class WaterMark:
         # return image as uint8
         return skimage.img_as_ubyte(img_m)
 
-    def decodeMark(self, img, length=200, frequencies='MEDIUM'):
+    def decodeMark(self, img, metric, length=200, frequencies='MEDIUM'):
         """Method for extracting ana decoding hidden watermark
         
         Arguments:
             img {ndarray} -- host image
         
         Keyword Arguments:
+            metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
             length {int} -- length of embeded (watermark) 1D vector  (default: {200})
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
         
@@ -223,15 +224,18 @@ class WaterMark:
         mark = self.pseudoGen(length)
         radius = WaterMark.frequency2Radius(img, frequencies)
 
-        corr = np.zeros(64)
+        metricArray = np.zeros(32)
         counter = 0
-        for ind in range(int(radius-32), int(radius+32)):
+        for ind in range(int(radius-16), int(radius+16)):
             vec = WaterMark.extractMark(magnitude, ind)
             reshapedMark = WaterMark.generateReshapedMark(mark, magnitude, ind)
-            corr[counter] = WaterMark.covarMark(reshapedMark, vec)
+            if metric == 'COV':
+                metricArray[counter] = WaterMark.covarMark(reshapedMark, vec)
+            elif metric == 'CORR':
+                metricArray[counter] = WaterMark.corrMark(reshapedMark, vec)
             counter += 1
 
-        return np.amax(corr)
+        return np.amax(metricArray)
 
     @staticmethod
     def extractMark(img, radius):
@@ -263,7 +267,7 @@ class WaterMark:
         return vec
 
     @staticmethod
-    def impactFactor_PSNR_SSIM(img, seed, min_impact = 0.75, max_impact = 4, steps = 25):
+    def impactFactorMetric(img, seed, min_impact = 0.75, max_impact = 4, steps = 25):
         """ Method for calculating dependency between Impact Factor and PSNR/SSIM
 
         Arguments:
@@ -353,7 +357,7 @@ class WaterMark:
         return radius
 
     @staticmethod
-    def covarMark(mark, vector):
+    def staticCovarMark(mark, vector):
         """Cross correlation of two 1D sequences that are first made zero-mean
 
         Arguments:
@@ -366,7 +370,77 @@ class WaterMark:
         # normalize to zero mean
         mark = mark - np.mean(mark)
         vector = vector - np.mean(vector)
-        return (np.cov(mark[:, 0], vector[:, 0])[0][1])  
+        return (np.cov(mark[:, 0], vector[:, 0])[0][1])
+
+    #TODO Make mark and vector real 1D-arrays, instead of 2D-arrays with empty 2nd dim.
+    @staticmethod
+    def covarMark(mark, vector):
+        """Cross covariation of two 1D sequences that are first made zero-mean
+
+        Arguments:
+            mark {ndarray} -- array like input sequences
+            vector {ndarray} -- array like input sequences
+
+        Returns:
+            {ndarray} -- 1D vector of full cross correlation of two args
+        """
+        # normalize to zero mean
+        mark = mark - np.mean(mark)
+        vector = vector - np.mean(vector)
+
+        vector_lenght = len(vector)
+        max_cov = np.zeros(vector_lenght)
+        counter = 0
+
+        for i in range(len(vector)):
+            vector_roll = np.roll(vector, counter)
+            vector_2D = np.reshape(vector_roll, (vector_lenght, 1))
+            max_cov[counter] = np.cov(mark[:, 0], vector_2D[:, 0])[0][1]
+            counter += 1
+        return np.amax(max_cov)
+
+    @staticmethod
+    def corrMark(mark, vector):
+        """Cross correlation of two 1D sequences that are first made zero-mean
+
+        Arguments:
+            mark {ndarray} -- array like input sequences
+            vector {ndarray} -- array like input sequences
+
+        Returns:
+            {ndarray} -- 1D vector ofƒ full cross correlation of two args
+        """
+        # normalize to zero mean
+        mark = mark - np.mean(mark)
+        vector = vector - np.mean(vector)
+
+        vector_lenght = len(vector)
+        max_corr = np.zeros(vector_lenght)
+        counter = 0
+
+        for i in range(len(vector)):
+            vector_roll = np.roll(vector, counter)
+            vector_2D = np.reshape(vector_roll, (vector_lenght, 1))
+            max_corr[counter] = np.corrcoef(mark[:, 0], vector_2D[:, 0])[0][1]
+            counter += 1
+        return np.amax(max_corr)        
+
+    @staticmethod
+    def xcorrMark(mark, vector):
+        """Cross correlation of two 1D sequences that are first made zero-mean
+
+        Arguments:
+            mark {ndarray} -- array like input sequences
+            vector {ndarray} -- array like input sequences
+
+        Returns:
+            {ndarray} -- 1D vector of full cross correlation of two args
+        """
+        # normalize to zero mean
+        mark = mark - np.mean(mark)
+        vector = vector - np.mean(vector)
+        correlation = plt.xcorr(mark[:, 0], vector[:, 0])
+        return correlation
 
     def isReplaceable(img, repCMYmin, repKmax=100):
         """Checks if pixels in an image can be GCR-d
@@ -409,7 +483,6 @@ class WaterMark:
             imgMarked = self.embedMark(img,length,frequencies,impactFactor)
             psnrMarked = msr.compare_psnr(img, imgMarked)
             ssimMarked = msr.compare_ssim(img, imgMarked,multichannel=True)
-            # print(f'PSNR: {psnrMarked:.2f}, SSIM: {ssimMarked:.2f}, Factor : {impactFactor}')
 
             if rangePSNR[0] <= psnrMarked <= rangePSNR[1]:
                 break  #break out of while loop
