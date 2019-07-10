@@ -477,6 +477,8 @@ class WaterMark:
                 impactFactor*=1.9
             else:
                 impactFactor*=0.45
+            # print(impactFactor)
+            # print(psnrMarked)
         return impactFactor
 
     # TODO the method covert image to lab but accuracy is low. 
@@ -519,3 +521,4 @@ class WaterMark:
         rpl = gcrmask.isReplaceable(orig,15,0) 
         imgMasked = gcrmask.transformImage(orig, marked, rpl)
         gcrmask.delete()
+        return np.asarray(imgMasked)

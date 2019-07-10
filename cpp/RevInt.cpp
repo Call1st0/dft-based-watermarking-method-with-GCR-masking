@@ -192,12 +192,12 @@ mat RevInt::interp(vec labpt, vec kvals)
 	
 	//Structures to store solutions
 	std::vector<arma::s32_mat> sol_simp; //Simplices in which labpt was solved for
-	std::vector<std::vector<double>> sol_k;
-	std::vector<std::vector<double>> sol_c_rng;
+	std::vector<std::vector<double> > sol_k;
+	std::vector<std::vector<double> > sol_c_rng;
 	//cout << clind << " " << m_cubelist[clind].size() << "\n";
 	for (int cube = 0; cube < m_cubelist[clind].size(); cube++)
 	{		
-		std::vector<Mat<int>> simplices_cur = simplices; //Current simplices
+		std::vector<Mat<int> > simplices_cur = simplices; //Current simplices
 		//Search for solutions within current cube's simplices
 		for (int simp = 0; simp < 24; simp++)
 		{
@@ -380,12 +380,12 @@ mat RevInt::interpex(vec labpt, vec kvals)
 
 	//Structures to store solutions
 	std::vector<arma::s32_mat> sol_simp; //Simplices in which labpt was solved for
-	std::vector<std::vector<double>> sol_k;
-	std::vector<std::vector<double>> sol_c_rng;
+	std::vector<std::vector<double> > sol_k;
+	std::vector<std::vector<double> > sol_c_rng;
 	//cout << clind << " " << m_cubelist[clind].size() << "\n";
 	for (int cube = 0; cube < m_cubelist[clind].size(); cube++)
 	{
-		std::vector<Mat<int>> simplices_cur = simplices; //Current simplices
+		std::vector<Mat<int> > simplices_cur = simplices; //Current simplices
 		//Search for solutions within current cube's simplices
 		for (int simp = 0; simp < 24; simp++)
 		{
@@ -672,7 +672,7 @@ mat RevInt::interpex(vec labpt, vec kvals)
 }
 
 mat RevInt::interpexLut(vec labpt, vec kvals, std::vector<arma::s32_mat> *sol_simp_vec,
-	std::vector<std::vector<double>> *sol_k_vec, double *kminout, double *kmaxout)
+	std::vector<std::vector<double> > *sol_k_vec, double *kminout, double *kmaxout)
 {
 	//Determine Labpt's incices for cube list and get cubes where it might reside
 	vec labptn = labpt - m_labextm.col(0); //Value normalized to minimum
@@ -682,11 +682,11 @@ mat RevInt::interpexLut(vec labpt, vec kvals, std::vector<arma::s32_mat> *sol_si
 
 	//Structures to store solutions
 	std::vector<arma::s32_mat> sol_simp; //Simplices in which labpt was solved for
-	std::vector<std::vector<double>> sol_k;
-	std::vector<std::vector<double>> sol_c_rng;
+	std::vector<std::vector<double> > sol_k;
+	std::vector<std::vector<double> > sol_c_rng;
 	for (int cube = 0; cube < m_cubelist[clind].size(); cube++)
 	{
-		std::vector<Mat<int>> simplices_cur = simplices; //Current simplices
+		std::vector<Mat<int> > simplices_cur = simplices; //Current simplices
 		//Search for solutions within current cube's simplices
 		for (int simp = 0; simp < 24; simp++)
 		{
@@ -1040,8 +1040,8 @@ void RevInt::interpLut(double *lutcmykarr, unsigned short *outgamarr, double* km
 				if (arma::sum(oog) != 8)
 				{
 					//Structures to hold solution for in-gamut points
-					std::vector<std::vector<arma::s32_mat>> sol_simp_vec(8); //Simplices in which labpt was solved for
-					std::vector<std::vector<std::vector<double>>> sol_k_vec(8);
+					std::vector<std::vector<arma::s32_mat> > sol_simp_vec(8); //Simplices in which labpt was solved for
+					std::vector<std::vector<std::vector<double> > > sol_k_vec(8);
 					double kmins[8];
 					double kmaxs[8];
 

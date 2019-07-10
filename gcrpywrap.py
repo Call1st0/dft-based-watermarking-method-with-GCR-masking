@@ -22,7 +22,7 @@ def PrintProgress(current, total):
     print(str(current + 1) + ' / ' + str(total))
 
 # Setup LittleCMS wrapper
-lcmswrap = cdll.LoadLibrary('lib/libGcr.so')
+lcmswrap = cdll.LoadLibrary('../lib/libGcr.dylib')
 lcmswrap.makecform.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 lcmswrap.makecform.restype = ctypes.c_void_p
 lcmswrap.applycform.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.c_size_t]
@@ -37,7 +37,7 @@ lcmswrap.deleteabscform.argtypes = [ctypes.c_void_p]
 lcmswrap.deleteabscform.restype = None
 
 #Setup RevInt wrapper
-revint = cdll.LoadLibrary('lib/libGcr.so')
+revint = cdll.LoadLibrary('../lib/libGcr.dylib')
 revint.makeRevInt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 revint.makeRevInt.restype = ctypes.c_void_p
 revint.deleteRevInt.argtypes=[ctypes.c_void_p]
@@ -133,7 +133,7 @@ class labk2cmykform:
 class gammapform:
     
     def __init__(self, filename):
-        Lab_grid_LUT_gm_f = np.fromfile('bin/gm_lab.bin', dtype=ctypes.c_float, count=-1, sep='')
+        Lab_grid_LUT_gm_f = np.fromfile('../bin/gm_lab.bin', dtype=ctypes.c_float, count=-1, sep='')
         Lab_grid_LUT_gm_f_p = Lab_grid_LUT_gm_f.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
         self.address = ctypes.c_void_p(revint.makegammapForm(Lab_grid_LUT_gm_f_p, ctypes.c_uint(45)))
         

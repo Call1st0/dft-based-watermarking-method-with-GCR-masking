@@ -30,7 +30,7 @@ private:
 	std::vector<int> oct6;
 	std::vector<int> oct7;
 	std::vector<int> oct8;
-	std::map<int, std::vector<int>> vec_map;
+	std::map<int, std::vector<int> > vec_map;
 
 	void PrintProgress(pfnPrintProgress PrintCallback, size_t current, size_t total);
 	int GetOctand(vec Lab_pos);

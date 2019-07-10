@@ -34,11 +34,11 @@ public:
 	~RevInt();
 
 private:
-	std::vector<Mat<int>> simplices;
-	std::vector<std::vector<std::vector<int>>> m_cubelist;
+	std::vector<Mat<int> > simplices;
+	std::vector<std::vector<std::vector<int> > > m_cubelist;
 	
 	mat interpexLut(vec labpt, vec kvals, std::vector<arma::s32_mat> *sol_simp_vec,
-		std::vector<std::vector<double>> *sol_k_vec, double *kminout, double *kmaxout);
+		std::vector<std::vector<double> > *sol_k_vec, double *kminout, double *kmaxout);
 	cmsHTRANSFORM makeCForm(const char *profname, const char *luttype);
 	mat permRep(vec x, int nocols, const char* varies);
 	Mat<int> permWoRep(int x[], int size);

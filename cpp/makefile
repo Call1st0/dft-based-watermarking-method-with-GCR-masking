@@ -8,7 +8,7 @@ Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o : CXXFLAGS+=-fPIC
 endif
 ifeq ($(UNAME), Darwin)
 libGcr.dylib: Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o
-	$(CXX) -shared $^ -o $@ -Wl,--force_load -llcms2 -Wl,--noall_load archive -Wl,--force_load -llapack -Wl,--noall_load -Wl,--force_load -lblas -Wl,--noall_load -Wl,--force_load -larmadillo -Wl,--noall_load
+	$(CXX) -shared $^ -o $@ -Wl,-force_load /usr/local/lib/liblcms2.a  -Wl,-noall_load -Wl,-force_load /usr/local/opt/lapack/lib/libblas.dylib -Wl,-noall_load -Wl,-force_load /usr/local/opt/lapack/lib/liblapack.dylib -Wl,-noall_load -Wl,-force_load /usr/local/lib/libarmadillo.dylib -Wl,-noall_load
 
 Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o : CXXFLAGS+=-fPIC
 endif

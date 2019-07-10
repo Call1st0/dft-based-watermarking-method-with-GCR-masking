@@ -34,7 +34,7 @@ class wmgcr:
     self.prof_name = prof_name
 
 	# Setup CMYK->Lab transform
-    self.profpath = Path('profiles/' + self.prof_name)
+    self.profpath = Path('../profiles/' + self.prof_name)
     if not self.profpath.exists():
         raise FileNotFoundError(self.profpath.name + ' does not exist in the profiles/ folder')
         pass
@@ -53,13 +53,13 @@ class wmgcr:
     self.LabExtm[1, :] = np.max(Lab_grid, 0)
 
 	#Setup gamut mapping form
-    self.gmform = gw.gammapform('bin/gm_lab.bin')
+    self.gmform = gw.gammapform('../bin/gm_lab.bin')
 
 	# Setup LabK->CMYK transform
-    self.lk2cform = gw.labk2cmykform('bin/cmyklut.bin', self.LabExtm)
+    self.lk2cform = gw.labk2cmykform('../bin/cmyklut.bin', self.LabExtm)
 
 	#Setup Lab to Kmin Kmax transform
-    Klut = np.fromfile('bin/kminmax.bin', dtype=ctypes.c_double, count=-1, sep="")
+    Klut = np.fromfile('../bin/kminmax.bin', dtype=ctypes.c_double, count=-1, sep="")
     Klut = Klut.reshape(np.int(np.size(Klut,0)/2), 2)
     from scipy.interpolate import RegularGridInterpolator
     Lnode = np.linspace(self.LabExtm[0, 0], self.LabExtm[1, 0], 45)
@@ -113,7 +113,7 @@ class wmgcr:
     
     loopcount=0
     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        print(np.size(np.where(Indsfix==True)))
+        # print(np.size(np.where(Indsfix==True)))
 
         Kcur = (Knext + Kprev) / 2
         LabKcur = np.ndarray(shape=(np.size(Kprev), 4), dtype=ctypes.c_double, order='F')
@@ -156,7 +156,7 @@ class wmgcr:
                                     #Taking too large Kmin from Kminfn will prevent convergence
     loopcount=0
     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        print(np.size(np.where(Indsfix==True)))
+        # print(np.size(np.where(Indsfix==True)))
 
         Kcur = (Knext + Kprev) / 2
         LabKcur = np.ndarray(shape=(np.size(np.where(Indsfix==True)), 4), dtype=ctypes.c_double, order='F')
@@ -238,7 +238,7 @@ class wmgcr:
     
     loopcount=0
     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        print(np.size(np.where(Indsfix==True)))
+        # print(np.size(np.where(Indsfix==True)))
 
         Kcur = (Knext + Kprev) / 2
         LabKcur = np.ndarray(shape=(np.size(Kprev), 4), dtype=ctypes.c_double, order='F')
@@ -281,7 +281,7 @@ class wmgcr:
                                     #Taking too large Kmin from Kminfn will prevent convergence
     loopcount=0
     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        print(np.size(np.where(Indsfix==True)))
+        # print(np.size(np.where(Indsfix==True)))
 
         Kcur = (Knext + Kprev) / 2
         LabKcur = np.ndarray(shape=(np.size(np.where(Indsfix==True)), 4), dtype=ctypes.c_double, order='F')
