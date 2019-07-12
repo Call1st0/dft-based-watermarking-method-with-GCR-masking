@@ -32,13 +32,7 @@ elif platform == "win32":
     dynamicLibrary = 'libGcr.dll' #TODO fix this to make usuable on win platform
 
 # Setup LittleCMS wrapper
-<<<<<<< HEAD
-lcmswrap = cdll.LoadLibrary('lib/libGcr.dylib')
-||||||| merged common ancestors
-lcmswrap = cdll.LoadLibrary('../lib/libGcr.dylib')
-=======
 lcmswrap = cdll.LoadLibrary('lib/'+ dynamicLibrary)
->>>>>>> a8907e89f4c657cafb0e1859cc10568a2903c263
 lcmswrap.makecform.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 lcmswrap.makecform.restype = ctypes.c_void_p
 lcmswrap.applycform.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.c_size_t]
@@ -53,13 +47,7 @@ lcmswrap.deleteabscform.argtypes = [ctypes.c_void_p]
 lcmswrap.deleteabscform.restype = None
 
 #Setup RevInt wrapper
-<<<<<<< HEAD
-revint = cdll.LoadLibrary('lib/libGcr.dylib')
-||||||| merged common ancestors
-revint = cdll.LoadLibrary('../lib/libGcr.dylib')
-=======
 revint = cdll.LoadLibrary('lib/'+ dynamicLibrary)
->>>>>>> a8907e89f4c657cafb0e1859cc10568a2903c263
 revint.makeRevInt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 revint.makeRevInt.restype = ctypes.c_void_p
 revint.deleteRevInt.argtypes=[ctypes.c_void_p]
