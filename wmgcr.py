@@ -34,7 +34,7 @@ class wmgcr:
     self.prof_name = prof_name
 
 	# Setup CMYK->Lab transform
-    self.profpath = Path('../profiles/' + self.prof_name)
+    self.profpath = Path('profiles/' + self.prof_name)
     if not self.profpath.exists():
         raise FileNotFoundError(self.profpath.name + ' does not exist in the profiles/ folder')
         pass
@@ -53,13 +53,13 @@ class wmgcr:
     self.LabExtm[1, :] = np.max(Lab_grid, 0)
 
 	#Setup gamut mapping form
-    self.gmform = gw.gammapform('../bin/gm_lab.bin')
+    self.gmform = gw.gammapform('bin/gm_lab.bin')
 
 	# Setup LabK->CMYK transform
-    self.lk2cform = gw.labk2cmykform('../bin/cmyklut.bin', self.LabExtm)
+    self.lk2cform = gw.labk2cmykform('bin/cmyklut.bin', self.LabExtm)
 
 	#Setup Lab to Kmin Kmax transform
-    Klut = np.fromfile('../bin/kminmax.bin', dtype=ctypes.c_double, count=-1, sep="")
+    Klut = np.fromfile('bin/kminmax.bin', dtype=ctypes.c_double, count=-1, sep="")
     Klut = Klut.reshape(np.int(np.size(Klut,0)/2), 2)
     from scipy.interpolate import RegularGridInterpolator
     Lnode = np.linspace(self.LabExtm[0, 0], self.LabExtm[1, 0], 45)
