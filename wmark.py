@@ -251,10 +251,14 @@ class WaterMark:
             {float} -- correlation value of the extracted vector and generated watermark
         """
         img_y, image_type = WaterMark.getMarkChannel(img)
+        
+        if not img_y.shape == (512,512):
+            img_y = trs.resize(img_y,(512,512))
+        
         magnitude, phase = self.inputProc(img_y)
 
         mark = self.pseudoGen(length)
-        radius = WaterMark.frequency2Radius(img, frequencies)
+        radius = WaterMark.frequency2Radius(img_y, frequencies)
 
         metricArray = np.zeros(32)
         counter = 0
@@ -459,26 +463,6 @@ class WaterMark:
         vector = vector - np.mean(vector)
         correlation = plt.xcorr(mark[:, 0], vector[:, 0])
         return correlation
-
-    # def isReplaceable(img, repCMYmin, repKmax=100):
-    #     """Checks if pixels in an image can be GCR-d
-        
-    #     Arguments:
-    #         im {ndarray} -- image
-    #         repCMYmin {float} -- minimal value for CMY to be considered replacable
-    #         repKmax {float} -- maximum value of K to be considered replacable 
-        
-    #     Returns:
-    #         {ndarray} -- array of bools with the same shape as img inidicating replacebility
-    #     """
-
-    #     img = np.ndarray.astype(img, dtype=float)
-    #     imsh0 = img.shape[0]
-    #     imsh1 = img.shape[1]
-    #     img = img.reshape(np.int((imsh0*imsh1)), img.shape[2])
-    #     rpl = np.logical_and(np.logical_and(np.logical_and(img[:, 0]/2.55 > repCMYmin, img[:, 1]/2.55 > repCMYmin),
-    #                                         img[:, 2]/2.55 > repCMYmin), img[:, 3]/2.55 < repKmax)
-    #     return rpl.reshape((imsh0, imsh1,4))
     
     def findImpactFactor(self, img, rangePSNR=(40,45), length=200, frequencies='MEDIUM'):
         """find impact factor that will return PSNR quality in given range
@@ -537,7 +521,7 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def gcrMasking(orig, marked, profileName='profiles/ISOcoated_v2_eci.icc'):
+    def gcrMasking(orig, marked, profileName='ISOcoated_v2_eci.icc'):
         """GCR based method for masking artefacts introduced by watermark
         
         Arguments:
