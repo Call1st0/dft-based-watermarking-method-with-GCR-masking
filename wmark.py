@@ -28,7 +28,7 @@ import imageio
 from PIL import Image, ImageCms
 from scipy import fftpack
 import math
-from enum import Enum
+# from enum import Enum
 import pandas as pd
 import wmgcr
 
@@ -43,27 +43,58 @@ class WaterMark:
         pass
 
     @staticmethod
-    def compareImages(originalImg, modifiedImg):
+    def compareImages(originalImg, modifiedImg, maskedImg):
         """ Helper method for displaying comparison of images """
-        fig, axes = plt.subplots(nrows=1, ncols=2, sharex='all', sharey='all')
-        # ax = axes.ravel()
+        fig, axes = plt.subplots(nrows=1, ncols=3, sharex='all', sharey='all')
 
-        psnr_orig = msr.compare_psnr(originalImg, originalImg)
-        ssim_orig = msr.compare_ssim(originalImg, originalImg, multichannel = True)
-
-        psnr_mod = msr.compare_psnr(originalImg, modifiedImg)
-        ssim_mod = msr.compare_ssim(originalImg, modifiedImg, multichannel = True)
-
+        
         label = 'PSNR: {:.2f}, SSIM: {:.2f}'
 
-        axes[0].imshow(originalImg, cmap=plt.cm.gray)
+        # check if the image is grayscale, RGB or CMYK image
+        if len(originalImg.shape) == 2:
+            displayOriginalImg = originalImg
+            displayModifiedImg = modifiedImg 
+            displayMaskedImg = maskedImg
+        elif len(originalImg.shape) == 3:
+            if originalImg.shape[2] == 4:  # CMYK image
+                print('Unable to show images correctly in cmyk > coverting to srgb')
+                displayOriginalImg = WaterMark.profileCmyk2srgb(originalImg)
+                displayModifiedImg = WaterMark.profileCmyk2srgb(modifiedImg)
+                displayMaskedImg = WaterMark.profileCmyk2srgb(maskedImg)
+                
+            elif originalImg.shape[2] == 3:  # RBG image
+                displayOriginalImg = originalImg
+                displayModifiedImg = modifiedImg 
+                displayMaskedImg = maskedImg
+                
+            else:
+                raise TypeError(
+                    "Image has wrong number of channels. Only 3 or 4 channels allowed")
+        else:
+            raise TypeError(
+                "Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
+                
+        psnr_orig = msr.compare_psnr(displayOriginalImg, displayOriginalImg)
+        ssim_orig = msr.compare_ssim(displayOriginalImg, displayOriginalImg, multichannel = True)
+
+        psnr_mod = msr.compare_psnr(displayOriginalImg, displayModifiedImg)
+        ssim_mod = msr.compare_ssim(displayOriginalImg, displayModifiedImg, multichannel = True)
+
+        psnr_mask = msr.compare_psnr(displayOriginalImg, displayMaskedImg)
+        ssim_mask = msr.compare_ssim(displayOriginalImg, displayMaskedImg, multichannel = True)
+
+        axes[0].imshow(displayOriginalImg)
         axes[0].set_xlabel(label.format(psnr_orig, ssim_orig))
         axes[0].set_title('Original image')
 
-        axes[1].imshow(modifiedImg, cmap=plt.cm.gray)
+        axes[1].imshow(displayModifiedImg)
         axes[1].set_xlabel(label.format(psnr_mod, ssim_mod))
         axes[1].set_title('Modified image')
 
+        axes[2].imshow(displayMaskedImg)
+        axes[2].set_xlabel(label.format(psnr_mask, ssim_mask))
+        axes[2].set_title('Masked image')
+        
         plt.show()
 
     @staticmethod
@@ -490,7 +521,7 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def profileCmyk2srgb(img,profileCmyk):
+    def profileCmyk2srgb(img,profileCmyk='profiles/ISOcoated_v2_eci.icc'):
         """convert from CMYK to sRGB color space using Cmyk profile
         
         Arguments:
@@ -506,7 +537,7 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def gcrMasking(orig, marked, profileName='ISOcoated_v2_eci.icc'):
+    def gcrMasking(orig, marked, profileName='profiles/ISOcoated_v2_eci.icc'):
         """GCR based method for masking artefacts introduced by watermark
         
         Arguments:
