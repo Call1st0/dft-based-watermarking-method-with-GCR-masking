@@ -440,7 +440,7 @@ class WaterMark:
         Returns:
             [float] -- impact factor for which encoded image will have given quality
         """
-        impactFactor = 100
+        impactFactor = 500
         psnrMarked=0
         imgMarked = np.zeros(img.shape)
         while True:
