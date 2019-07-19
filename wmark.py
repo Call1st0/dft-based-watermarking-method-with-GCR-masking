@@ -425,8 +425,8 @@ class WaterMark:
         vector = vector - np.mean(vector)
         correlation = plt.xcorr(mark[:, 0], vector[:, 0])
         return correlation
-    
-    def findImpactFactor(self, img, rangePSNR=(40,45), length=200, frequencies='MEDIUM'):
+
+    def findImpactFactor(self, img, rangePSNR=(38, 39), length=200, frequencies='MEDIUM'):
         """find impact factor that will return PSNR quality in given range
         
         Arguments:
@@ -440,23 +440,37 @@ class WaterMark:
         Returns:
             [float] -- impact factor for which encoded image will have given quality
         """
-        impactFactor = 500
-        psnrMarked=0
-        imgMarked = np.zeros(img.shape)
-        while True:
-            imgMarked = self.embedMark(img,length,frequencies,impactFactor)
-            psnrMarked = msr.compare_psnr(img, imgMarked)
-            ssimMarked = msr.compare_ssim(img, imgMarked,multichannel=True)
+        # Defining range of Impact Factor values as a tuple
+        arrImpFct = (50, 4000)
 
-            if rangePSNR[0] <= psnrMarked <= rangePSNR[1]:
-                break  #break out of while loop
-            elif psnrMarked > rangePSNR[0]:
-                impactFactor*=1.9
+        # Defining left (lowest) and right (highest) values from tuple
+        l = arrImpFct[0]
+        r = arrImpFct[1]
+
+        # This while statement is just a measure of precaution. r <= l should be True
+        while r >= l:
+
+            # Defining the midpoint between l and r
+            mid = l + (r - l) / 2
+
+            # Setting Impact Factor value to midpoint of tuple
+            impactFactor = mid
+
+            # Calculating PSNR value
+            imgMarked = self.embedMark(img, length, frequencies, impactFactor)
+            psnrMarked = msr.compare_psnr(img, imgMarked)
+
+            if psnrMarked > rangePSNR[1]:
+                l = mid
+            elif psnrMarked < rangePSNR[0]:
+                r = mid
             else:
-                impactFactor*=0.45
-            # print(impactFactor)
-            # print(psnrMarked)
-        return impactFactor
+                return impactFactor
+
+        # If something unexpected occurs, return value of 1000
+        else:
+            print("Error: Unable to find. Set Impact Factor to 1000.")
+            return 1000
 
     # TODO the method covert image to lab but accuracy is low. 
     @staticmethod
