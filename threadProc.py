@@ -19,7 +19,7 @@ from multiprocessing import Queue as PQueue
 import queue
 
 # Source Directory
-srcFolder = 'TestSet20/'
+srcFolder = 'TestSetFull/'
 # Source Path
 srcPth = Path(srcFolder).resolve()
 
@@ -34,13 +34,13 @@ def procImg(img):
 
     randomNum = 5
     counter = 0
-    wObject = WaterMark(randomNum)
+    wObject = WaterMark(randomNum) 
     
     # Find impact factor within a PSNR range
-    #ImpactFactor = wObject.findImpactFactor(imgOriginal, rangePSNR = (30.0,40.0))
+    ImpactFactor = wObject.findImpactFactor(imgOriginal, rangePSNR = (35.0,40.0))
     
     # Mark image
-    imgMarked = wObject.embedMark(imgOriginal, factor = 1000)
+    imgMarked = wObject.embedMark(imgOriginal, factor = ImpactFactor)
     
     #CROPPING
     #CROPPING

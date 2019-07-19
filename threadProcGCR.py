@@ -15,6 +15,9 @@ import cv2
 from wmark import WaterMark
 import multiprocessing
 
+from multiprocessing import Queue as PQueue
+import queue
+
 # Source Directory
 srcFolder = 'TestSetFull/'
 # Source Path
@@ -24,13 +27,17 @@ def procImg(img):
     # Read original image
     imgOriginal = WaterMark.imread(img)
     print(img)
+    
+    # Creating zeros Numpy Array for results
+    global results
+    results = np.zeros([1,9])
 
     randomNum = 5
     counter = 0
     wObject = WaterMark(randomNum)
     
     # Find impact factor within a PSNR range
-    ImpactFactor = wObject.findImpactFactor(imgOriginal, rangePSNR = (35,40))
+    ImpactFactor = wObject.findImpactFactor(imgOriginal, rangePSNR = (35.0,40.0))
     
     # Mark image
     imgMarked = wObject.embedMark(imgOriginal, factor = ImpactFactor)
@@ -173,41 +180,40 @@ def procImg(img):
 
     return results
 
-metricDataframe = pd.DataFrame()
+if __name__ == '__main__':
 
-# for i in range(1, 2):
+    # All TIF files in the src_path are now imgs
+    listOfImgs = glob.glob(srcFolder+'*.tif')
 
-    
-# Generating random seed as integer up to 10000
-# randomNums = np.random.randint(10000, size=(1))
-# randomNum = randomNums[0]
-# print(randomNum)
+    # listofimgs = os.listdir(srcPth)
+    # -1 because there os one hidden file in directory
+    numImages = len(listOfImgs)
 
-# wObject = WaterMark(randomNum)
+    global my_q 
+    my_q = PQueue()
 
-# All TIF files in the src_path are now imgs
-listOfImgs = glob.glob(srcFolder+'*.tif')
+    pool = multiprocessing.Pool(16) # no parameter provided in constructor, use all threads
+    results = pool.map(procImg, listOfImgs) # return data as list of arrays
 
-# Counting the number of images in src_folder
-# listofimgs = os.listdir(srcPth)
-# -1 because there os one hidden file in directory
-numImages = len(listOfImgs)
+    its = []
+    while True:
+        try:
+            print("Waiting")
+            i = my_q.get(True, 5)
+            print("Found %s from the queue!" %i)
+            its.append(i)
+        except queue.Empty:
+            print("Caught queue empty, done")
+            break
+    print("Processed %d items, completed." %len(its))
 
-# Creating zeros Numpy Array for results
-results = np.zeros([ 1,9])
+    pool.close()
+    pool.join()
+            
+    metricValues = ["Original", "Cropped", "Scaled", "Rotated", "Affined", "2D Convoluted", "Blurred", "Noised", "GCR / Marked"]
 
-pool = multiprocessing.Pool() # no parameter provided in constructor, use all threads
-results = pool.map(procImg, listOfImgs) # return data as list of arrays
-pool.close()
-pool.join()
-        
-metricValues = ["Original", "Cropped", "Scaled", "Rotated", "Affined", "2D Convoluted", "Blurred", "Noised", "GCR / Marked"]
-# randomNum = 5
-# metricSeeds = [f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}", f"Marked {randomNum}"]
-
-# stack all rows fo the array to create dataframe, pass titles for columns
-metricDataframe = pd.DataFrame(np.row_stack(results),columns=metricValues)   
-print(metricDataframe.tail())
-metricDataframe.to_pickle('metric_data_frame_GCR.pkl')
-metricDataframe.to_csv('metric_data_frame_GCR.csv')
-# metricDataframe = pd.concat([metricDataframe, finalMetric], axis = 1)
+    # stack all rows fo the array to create dataframe, pass titles for columns
+    metricDataframe = pd.DataFrame(np.row_stack(results),columns=metricValues)   
+    print(metricDataframe.tail())
+    metricDataframe.to_pickle('metricDataFrameGCR.pkl')
+    metricDataframe.to_csv('metricDataFrameGCR.csv')
