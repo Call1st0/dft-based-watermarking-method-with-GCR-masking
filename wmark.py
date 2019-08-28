@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright 2019 Ante Poljicak
+# Copyright 2019 Ante Poljicak, Petar Branislav Jelusic
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,8 +27,11 @@ import matplotlib.image as mpimg
 import imageio
 from PIL import Image, ImageCms
 from scipy import fftpack
+import glob
 import math
-# from enum import Enum
+import multiprocessing
+from multiprocessing import Queue as PQueue
+import queue
 import pandas as pd
 import wmgcr
 
@@ -446,10 +449,13 @@ class WaterMark:
         # Defining left (lowest) and right (highest) values from tuple
         l = arrImpFct[0]
         r = arrImpFct[1]
-
+        counter = 0
         # This while statement is just a measure of precaution. r <= l should be True
         while r >= l:
-
+            counter+=1
+            print(counter)
+            if counter >= 10:
+                break
             # Defining the midpoint between l and r
             mid = l + (r - l) / 2
 
@@ -468,9 +474,9 @@ class WaterMark:
                 return impactFactor
 
         # If something unexpected occurs, return value of 1000
-        else:
-            print("Error: Unable to find. Set Impact Factor to 1000.")
-            return 1000
+        # else:
+        print("Error: Unable to find. Set Impact Factor to 1000.")
+        return 1000
 
     # TODO the method covert image to lab but accuracy is low. 
     @staticmethod
@@ -512,4 +518,43 @@ class WaterMark:
         rpl = gcrmask.isReplaceable(orig,15,0) 
         imgMasked = gcrmask.transformImage(orig, marked, rpl)
         gcrmask.delete()
+        print('finished masking')
         return np.asarray(imgMasked)
+
+    def parallelProcessing(func, srcFolder):
+        """Utility method for concurent execution of a function on imgs in source folder
+        
+        Arguments:
+            func {function} -- defined function that has only one parameter (img)
+            srcFolder {string} -- path to folder with images
+        
+        Returns:
+            dataFrame -- every row represents another image in folder, 
+                         num of cols depend on defined function
+        """
+        # All TIF files in the src_path are now imgs
+        listOfImgs = glob.glob(srcFolder+'*.tif')
+        numImages = len(listOfImgs)
+
+        my_q = PQueue()
+
+        pool = multiprocessing.Pool() # no parameter provided in constructor, use all threads
+        results = pool.map(func, listOfImgs) # return data as list of arrays
+
+        its = []
+        while True:
+            try:
+                print("Waiting")
+                i = my_q.get(True, 5)
+                print("Found %s from the queue!" %i)
+                its.append(i)
+            except queue.Empty:
+                print("Caught queue empty, done")
+                break
+        print("Processed %d items, completed." %len(its))
+
+        pool.close()
+        pool.join()
+
+        # stack all rows fo the array to create dataframe 
+        return pd.DataFrame(np.row_stack(results))   
