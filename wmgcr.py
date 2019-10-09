@@ -1,4 +1,7 @@
+#3.10.2019.
 #Transforms only replaceable colors
+#For marked K < Kmin, use Kmin
+#For marked K > Kmax, use Kmax
 
 import numpy as np
 import scipy as sp
@@ -19,6 +22,9 @@ def PrintProgress(current, total):
 
 def lutindex(l, k, j, nopts):
 		return nopts**2*l + nopts*k + j
+
+def dEab(Lab1, Lab2):
+    return np.sqrt(np.sum(np.power(Lab1-Lab2, 2), 1))
 
 class wmgcr:
   def __init__(self, prof_name):
@@ -77,144 +83,19 @@ class wmgcr:
     self.Kmaxfn = RegularGridInterpolator((Lnode, anode, bnode), Vmax)
 
   # Define image transform function
-  def transformImage(self, im_orig, im_wm, rpl):
+  def transformImage(self, im_orig, im_wm, method, repCMYmin, repKmax=100):
+        
     #Get image data
     pix = im_orig
     pixwm = im_wm
-    rpl = rpl.reshape((np.int(rpl.shape[0]*rpl.shape[1])))
     pix_dbl = np.ndarray.astype(pix, dtype=ctypes.c_double)
     pix_dbl = pix_dbl.reshape((np.size(pix, 0)*np.size(pix, 1), np.size(pix, 2)))
-    I_rpl = rpl
-    pix_rpl = pix_dbl[I_rpl,:]
-    pix_unq, Iunq, Iunq_inv = np.unique(pix_rpl, return_inverse=True, return_index=True, axis=0)
-    pix_unq = pix_unq / 2.55
-    #Tansform CMYK->Lab
-    pix_Lab = self.cfAtoB.apply(pix_unq)
-  
-    #Gamut mapping using form
-    pix_Lab_gm = self.gmform.apply(pix_Lab)
-    
-    #Get Kmin and Kmax
-    Kminmax = np.ndarray(shape=(np.size(pix_Lab_gm, 0), 2), dtype=ctypes.c_double, order='F')
-    Kminmax[:,0] = self.Kminfn(pix_Lab_gm)
-    Kminmax[:,1] = self.Kmaxfn(pix_Lab_gm)
-    
-    
-    #Try function estimated Kmin and iteratively find real Kmin
-    LabK = np.ndarray(shape=(np.size(pix_Lab_gm, 0), 4), dtype=ctypes.c_double, order='F')
-    LabK[:, 0:3] = pix_Lab_gm
-    LabK[:, 3] = Kminmax[:,0]
-    CMYK_BG = self.lk2cform.apply(LabK)
-    acov =  np.round(np.sum(CMYK_BG, 1), 2)  #Area coverage
-    Indsfix = np.logical_or(CMYK_BG[:,0] > 100, np.logical_or(CMYK_BG[:,1] > 100, CMYK_BG[:,2] > 100))
-    Indicesfix = np.where(Indsfix==True)  
-    Kprev = Kminmax[Indsfix,0]
-    Knext = Kminmax[Indsfix,1]
-    
-    loopcount=0
-    while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        # print(np.size(np.where(Indsfix==True)))
-
-        Kcur = (Knext + Kprev) / 2
-        LabKcur = np.ndarray(shape=(np.size(Kprev), 4), dtype=ctypes.c_double, order='F')
-        LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
-        LabKcur[:,3] = Kcur
-        CMYKcur = self.lk2cform.apply(LabKcur)
-        #Round to second decimal
-        CMYKcurrnd = CMYKcur.copy()
-        acov =  np.round(np.sum(CMYKcurrnd, 1), 2)  #Area coverage
-        CMYKcurrnd = np.round(CMYKcurrnd, 2)
-        #Condition 1 - C,M,Y > 100; Increase K
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] > 100, np.logical_or(CMYKcurrnd[:,1] > 100, CMYKcurrnd[:,2] > 100))
-        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 2 - C,M,Y > 0 AND acov > TIL; Increase K (acov - area coverage; TIL - total ink limit)
-#        Indsfixcur = np.logical_and(np.logical_and(CMYKcur[:,0] > 0, np.logical_and(CMYKcur[:,1] > 0, CMYKcur[:,2] > 0)), acov > TIL)
-#        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-#        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 3 - C,M,Y < 100 & acov < TIL
-        Indsfixcur = np.logical_and(CMYKcurrnd[:,0] < 100, np.logical_and(CMYKcurrnd[:,1] < 100, CMYKcurrnd[:,2] < 100))
-        Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Conditon 4 - C,M,Y == 100 OR acov = TIL; Real Kmin found
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 100, np.logical_or(CMYKcurrnd[:,1] == 100, CMYKcurrnd[:,2] == 100))
-        Kminmax[Indicesfix[0][Indsfixcur], 0] = Kcur[Indsfixcur]
-        Indsfix[Indicesfix[0][Indsfixcur]] = False
-        Indicesfix = np.where(Indsfix==True)
-        Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
-        Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
-        loopcount+=1
-    
-    
-    #Try function estimated Kmax and iteratively find real Kmax
-    LabK[:, 3] = Kminmax[:,1]
-    CMYK_BG = self.lk2cform.apply(LabK)
-    Indsfix = np.logical_or(CMYK_BG[:,0] < 0, np.logical_or(CMYK_BG[:,1] < 0, CMYK_BG[:,2] < 0))
-    Indicesfix = np.where(Indsfix==True)
-    Kprev = Kminmax[Indsfix,1]
-    Knext = Kminmax[Indsfix,0] - 10 #Kminfn is inaccurate so take lower values to ensure convergence
-                                    #Taking too large Kmin from Kminfn will prevent convergence
-    loopcount=0
-    while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        # print(np.size(np.where(Indsfix==True)))
-
-        Kcur = (Knext + Kprev) / 2
-        LabKcur = np.ndarray(shape=(np.size(np.where(Indsfix==True)), 4), dtype=ctypes.c_double, order='F')
-        LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
-        LabKcur[:,3] = Kcur
-        CMYKcur = self.lk2cform.apply(LabKcur)
-        #Round to second decimal
-        CMYKcurrnd = CMYKcur.copy()
-        CMYKcurrnd = np.round(CMYKcurrnd, 2)
-        #Condition 1 - C,M,Y < 0; Decrease K
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] < 0, np.logical_or(CMYKcurrnd[:,1] < 0, CMYKcurrnd[:,2] < 0))
-        Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 2 - C,M,Y > 0; Increase K
-        Indsfixcur = np.logical_and(CMYKcurrnd[:,0] > 0, np.logical_and(CMYKcurrnd[:,1] > 0, CMYKcurrnd[:,2] > 0))
-        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 3 - C,M,Y == 0
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 0, np.logical_or(CMYKcurrnd[:,1] == 0, CMYKcurrnd[:,2] == 0))
-        Kminmax[Indicesfix[0][Indsfixcur], 1] = Kcur[Indsfixcur]
-        Indsfix[Indicesfix[0][Indsfixcur]] = False
-        Indicesfix = np.where(Indsfix==True)
-        Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
-        Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
-        loopcount+=1
-    
-    #Black generation
     pixwm_dbl = np.ndarray.astype(pixwm, dtype=ctypes.c_double)
     pixwm_dbl = pixwm_dbl.reshape((np.size(pix, 0)*np.size(pix, 1), np.size(pix, 2)))
-    #K = pixwm_dbl[Iunq, 3]/2.55
-    K = pixwm_dbl[I_rpl,:][Iunq, 3]/2.55
-    
-    #Transform LabK->CMYK
-    LabK = np.ndarray(shape=(np.size(pix_Lab_gm, 0), 4), dtype=ctypes.c_double, order='F')
-    LabK[:, 0:3] = pix_Lab_gm
-    LabK[:, 3] = K
-    CMYK_BG = self.lk2cform.apply(LabK)    
-    CMYK_BG[CMYK_BG < 0] = 0
-    CMYK_BG[CMYK_BG > 100] = 100
-    pix_new = pix_dbl.copy()
-    pix_new[I_rpl,:] = CMYK_BG[Iunq_inv,:] * 2.55
-    pix_new_ui8 = (pix_new).astype(np.uint8)
-    im_new = Image.fromarray(pix_new_ui8.reshape((np.size(pix, 0), np.size(pix, 1), 4)))
-    im_new.mode = 'CMYK'    
-    rpl = rpl.reshape((np.size(pix, 0), np.size(pix, 1)))
-    return im_new
-
-  def isReplaceable(self, im, Krng, repCMYmin, repKmax=100):
-    im = np.ndarray.astype(im, dtype=ctypes.c_double)
-    pix=im
-    pix_dbl = np.ndarray.astype(pix, dtype=ctypes.c_double)
-    pix_dbl = pix_dbl.reshape((np.size(pix, 0)*np.size(pix, 1), np.size(pix, 2)))
     I_rpl = np.logical_and(np.logical_and(np.logical_and(pix_dbl[:,0]/2.55>self.repCMYmin, pix_dbl[:,1]/2.55>self.repCMYmin), pix_dbl[:,2]/2.55>self.repCMYmin), pix_dbl[:,3]/2.55<self.repKmax)
-    pix_rpl = pix_dbl[I_rpl,:]
-    pix_unq, Iunq, Iunq_inv = np.unique(pix_rpl, return_inverse=True, return_index=True, axis=0)
-    pix_unq = pix_unq / 2.55
+    pix_rpl = pix_dbl[I_rpl,:].copy() / 2.55
     #Tansform CMYK->Lab
-    pix_Lab = self.cfAtoB.apply(pix_unq)
+    pix_Lab = self.cfAtoB.apply(pix_rpl)
   
     #Gamut mapping using form
     pix_Lab_gm = self.gmform.apply(pix_Lab)
@@ -224,95 +105,214 @@ class wmgcr:
     Kminmax[:,0] = self.Kminfn(pix_Lab_gm)
     Kminmax[:,1] = self.Kmaxfn(pix_Lab_gm)
     
-    
     #Try function estimated Kmin and iteratively find real Kmin
-    LabK = np.ndarray(shape=(np.size(pix_Lab_gm, 0), 4), dtype=ctypes.c_double, order='F')
-    LabK[:, 0:3] = pix_Lab_gm
-    LabK[:, 3] = Kminmax[:,0]
-    CMYK_BG = self.lk2cform.apply(LabK)
-    acov =  np.round(np.sum(CMYK_BG, 1), 2)  #Area coverage
-    Indsfix = np.logical_or(CMYK_BG[:,0] > 100, np.logical_or(CMYK_BG[:,1] > 100, CMYK_BG[:,2] > 100))
-    Indicesfix = np.where(Indsfix==True)  
-    Kprev = Kminmax[Indsfix,0]
-    Knext = Kminmax[Indsfix,1]
+# =============================================================================
+#     LabK = np.ndarray(shape=(np.size(pix_Lab_gm, 0), 4), dtype=ctypes.c_double, order='F')
+#     LabK[:, 0:3] = pix_Lab_gm
+#     LabK[:, 3] = Kminmax[:,0]
+#     CMYK_BG = self.lk2cform.apply(LabK)
+#     acov =  np.round(np.sum(CMYK_BG, 1), 2)  #Area coverage
+#     Indsfix = np.logical_or(CMYK_BG[:,0] > 100, np.logical_or(CMYK_BG[:,1] > 100, CMYK_BG[:,2] > 100))
+#     Indicesfix = np.where(Indsfix==True)  
+#     Kprev = Kminmax[Indsfix,0]
+#     Knext = Kminmax[Indsfix,1]
+#     
+#     loopcount=0
+#     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
+#         # print(np.size(np.where(Indsfix==True)))
+# 
+#         Kcur = (Knext + Kprev) / 2
+#         LabKcur = np.ndarray(shape=(np.size(Kprev), 4), dtype=ctypes.c_double, order='F')
+#         LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
+#         LabKcur[:,3] = Kcur
+#         CMYKcur = self.lk2cform.apply(LabKcur)
+#         #Round to second decimal
+#         CMYKcurrnd = CMYKcur.copy()
+#         acov =  np.round(np.sum(CMYKcurrnd, 1), 2)  #Area coverage
+#         CMYKcurrnd = np.round(CMYKcurrnd, 2)
+#         #Condition 1 - C,M,Y > 100; Increase K
+#         Indsfixcur = np.logical_or(CMYKcurrnd[:,0] > 100, np.logical_or(CMYKcurrnd[:,1] > 100, CMYKcurrnd[:,2] > 100))
+#         Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
+#         Kprev[Indsfixcur]=Kcur[Indsfixcur]
+#         #Condition 2 - C,M,Y > 0 AND acov > TIL; Increase K (acov - area coverage; TIL - total ink limit)
+# #        Indsfixcur = np.logical_and(np.logical_and(CMYKcur[:,0] > 0, np.logical_and(CMYKcur[:,1] > 0, CMYKcur[:,2] > 0)), acov > TIL)
+# #        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
+# #        Kprev[Indsfixcur]=Kcur[Indsfixcur]
+#         #Condition 3 - C,M,Y < 100 & acov < TIL
+#         Indsfixcur = np.logical_and(CMYKcurrnd[:,0] < 100, np.logical_and(CMYKcurrnd[:,1] < 100, CMYKcurrnd[:,2] < 100))
+#         Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
+#         Kprev[Indsfixcur]=Kcur[Indsfixcur]
+#         #Conditon 4 - C,M,Y == 100 OR acov = TIL; Real Kmin found
+#         Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 100, np.logical_or(CMYKcurrnd[:,1] == 100, CMYKcurrnd[:,2] == 100))
+#         Kminmax[Indicesfix[0][Indsfixcur], 0] = Kcur[Indsfixcur]
+#         Indsfix[Indicesfix[0][Indsfixcur]] = False
+#         Indicesfix = np.where(Indsfix==True)
+#         Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
+#         Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
+#         loopcount+=1
+#     
+#     
+#     #Try function estimated Kmax and iteratively find real Kmax
+#     LabK[:, 3] = Kminmax[:,1]
+#     CMYK_BG = self.lk2cform.apply(LabK)
+#     Indsfix = np.logical_or(CMYK_BG[:,0] < 0, np.logical_or(CMYK_BG[:,1] < 0, CMYK_BG[:,2] < 0))
+#     Indicesfix = np.where(Indsfix==True)
+#     Kprev = Kminmax[Indsfix,1]
+#     Knext = Kminmax[Indsfix,0] - 10 #Kminfn is inaccurate so take lower values to ensure convergence
+#                                     #Taking too large Kmin from Kminfn will prevent convergence
+#     loopcount=0
+#     while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
+#         # print(np.size(np.where(Indsfix==True)))
+# 
+#         Kcur = (Knext + Kprev) / 2
+#         LabKcur = np.ndarray(shape=(np.size(np.where(Indsfix==True)), 4), dtype=ctypes.c_double, order='F')
+#         LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
+#         LabKcur[:,3] = Kcur
+#         CMYKcur = self.lk2cform.apply(LabKcur)
+#         #Round to second decimal
+#         CMYKcurrnd = CMYKcur.copy()
+#         CMYKcurrnd = np.round(CMYKcurrnd, 2)
+#         #Condition 1 - C,M,Y < 0; Decrease K
+#         Indsfixcur = np.logical_or(CMYKcurrnd[:,0] < 0, np.logical_or(CMYKcurrnd[:,1] < 0, CMYKcurrnd[:,2] < 0))
+#         Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
+#         Kprev[Indsfixcur]=Kcur[Indsfixcur]
+#         #Condition 2 - C,M,Y > 0; Increase K
+#         Indsfixcur = np.logical_and(CMYKcurrnd[:,0] > 0, np.logical_and(CMYKcurrnd[:,1] > 0, CMYKcurrnd[:,2] > 0))
+#         Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
+#         Kprev[Indsfixcur]=Kcur[Indsfixcur]
+#         #Condition 3 - C,M,Y == 0
+#         Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 0, np.logical_or(CMYKcurrnd[:,1] == 0, CMYKcurrnd[:,2] == 0))
+#         Kminmax[Indicesfix[0][Indsfixcur], 1] = Kcur[Indsfixcur]
+#         Indsfix[Indicesfix[0][Indsfixcur]] = False
+#         Indicesfix = np.where(Indsfix==True)
+#         Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
+#         Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
+#         loopcount+=1
+# =============================================================================
     
-    loopcount=0
-    while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        # print(np.size(np.where(Indsfix==True)))
-
-        Kcur = (Knext + Kprev) / 2
-        LabKcur = np.ndarray(shape=(np.size(Kprev), 4), dtype=ctypes.c_double, order='F')
-        LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
-        LabKcur[:,3] = Kcur
-        CMYKcur = self.lk2cform.apply(LabKcur)
-        #Round to second decimal
-        CMYKcurrnd = CMYKcur.copy()
-        acov =  np.round(np.sum(CMYKcurrnd, 1), 2)  #Area coverage
-        CMYKcurrnd = np.round(CMYKcurrnd, 2)
-        #Condition 1 - C,M,Y > 100; Increase K
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] > 100, np.logical_or(CMYKcurrnd[:,1] > 100, CMYKcurrnd[:,2] > 100))
-        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 2 - C,M,Y > 0 AND acov > TIL; Increase K (acov - area coverage; TIL - total ink limit)
-#        Indsfixcur = np.logical_and(np.logical_and(CMYKcur[:,0] > 0, np.logical_and(CMYKcur[:,1] > 0, CMYKcur[:,2] > 0)), acov > TIL)
-#        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-#        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 3 - C,M,Y < 100 & acov < TIL
-        Indsfixcur = np.logical_and(CMYKcurrnd[:,0] < 100, np.logical_and(CMYKcurrnd[:,1] < 100, CMYKcurrnd[:,2] < 100))
-        Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Conditon 4 - C,M,Y == 100 OR acov = TIL; Real Kmin found
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 100, np.logical_or(CMYKcurrnd[:,1] == 100, CMYKcurrnd[:,2] == 100))
-        Kminmax[Indicesfix[0][Indsfixcur], 0] = Kcur[Indsfixcur]
-        Indsfix[Indicesfix[0][Indsfixcur]] = False
-        Indicesfix = np.where(Indsfix==True)
-        Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
-        Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
-        loopcount+=1
+    
+    #Black generation, depends on the method
     
     
-    #Try function estimated Kmax and iteratively find real Kmax
-    LabK[:, 3] = Kminmax[:,1]
-    CMYK_BG = self.lk2cform.apply(LabK)
-    Indsfix = np.logical_or(CMYK_BG[:,0] < 0, np.logical_or(CMYK_BG[:,1] < 0, CMYK_BG[:,2] < 0))
-    Indicesfix = np.where(Indsfix==True)
-    Kprev = Kminmax[Indsfix,1]
-    Knext = Kminmax[Indsfix,0] - 10 #Kminfn is inaccurate so take lower values to ensure convergence
-                                    #Taking too large Kmin from Kminfn will prevent convergence
-    loopcount=0
-    while (np.size(np.where(Indsfix==True)) > 0 and loopcount<100):
-        # print(np.size(np.where(Indsfix==True)))
-
-        Kcur = (Knext + Kprev) / 2
-        LabKcur = np.ndarray(shape=(np.size(np.where(Indsfix==True)), 4), dtype=ctypes.c_double, order='F')
-        LabKcur[:, 0:3] = LabK[Indsfix, 0:3]
-        LabKcur[:,3] = Kcur
-        CMYKcur = self.lk2cform.apply(LabKcur)
-        #Round to second decimal
-        CMYKcurrnd = CMYKcur.copy()
-        CMYKcurrnd = np.round(CMYKcurrnd, 2)
-        #Condition 1 - C,M,Y < 0; Decrease K
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] < 0, np.logical_or(CMYKcurrnd[:,1] < 0, CMYKcurrnd[:,2] < 0))
-        Knext[Indsfixcur]=np.min(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 2 - C,M,Y > 0; Increase K
-        Indsfixcur = np.logical_and(CMYKcurrnd[:,0] > 0, np.logical_and(CMYKcurrnd[:,1] > 0, CMYKcurrnd[:,2] > 0))
-        Knext[Indsfixcur]=np.max(np.array([Kprev[Indsfixcur], Knext[Indsfixcur]]).transpose(), 1)
-        Kprev[Indsfixcur]=Kcur[Indsfixcur]
-        #Condition 3 - C,M,Y == 0
-        Indsfixcur = np.logical_or(CMYKcurrnd[:,0] == 0, np.logical_or(CMYKcurrnd[:,1] == 0, CMYKcurrnd[:,2] == 0))
-        Kminmax[Indicesfix[0][Indsfixcur], 1] = Kcur[Indsfixcur]
-        Indsfix[Indicesfix[0][Indsfixcur]] = False
-        Indicesfix = np.where(Indsfix==True)
-        Kprev=np.delete(Kprev, np.where(Indsfixcur==True)[0])
-        Knext=np.delete(Knext, np.where(Indsfixcur==True)[0])
-        loopcount+=1
-    rpl = np.ndarray(shape=(pix.shape[0]*pix.shape[1], 1), dtype=bool, order='F')
-    rpl.fill(False)
-    I_rng = np.abs(Kminmax[:,0]-Kminmax[:,1]) >= Krng
-    rpl[I_rpl,0] = I_rng[Iunq_inv]
-    rpl = rpl.reshape((pix.shape[0], pix.shape[1]))
-    return rpl
+    if method==1:
+        #Keeps watermarked K only where solution exists
+        #Keeps original image K elsewhere
+        
+        #Get watermarked K (K_wm) to check if it has solution
+        K_wm = pixwm_dbl[I_rpl,3]/2.55
+        I_rng = np.logical_and(K_wm >= Kminmax[:,0], K_wm <= Kminmax[:,1])
+           
+        #Transform LabK->CMYK
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = K_wm[I_rng]
+        #Get original CMYK set and replace only replaceable values in set
+        #Necessary so unique values can be restored
+        CMYK_BG =  pix_rpl.copy() #pix_dbl[I_rpl, :][Iunq]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)    
+        CMYK_BG[CMYK_BG < 0] = 0
+        CMYK_BG[CMYK_BG > 100] = 100
+        pix_new = pix_dbl.copy()
+        pix_new[I_rpl,:] = CMYK_BG * 2.55
+        pix_new_ui8 = pix_new.astype(np.uint8)
+        im_new = Image.fromarray(pix_new_ui8.reshape((np.size(pix, 0), np.size(pix, 1), 4)))
+        im_new.mode = 'CMYK'
+        return im_new
+        
+    elif method==2:
+        #Keeps watermarked K only where solution exists
+        #Finds solution for closest existing K (min or max) and replaces watermarked K with it
+        
+        #First handle K's where solutions exist, same code as in first part of method 1.
+        K_wm = pixwm_dbl[I_rpl,3]/2.55
+        I_rng = np.logical_and(K_wm >= Kminmax[:,0], K_wm <= Kminmax[:,1])
+           
+        #Transform LabK->CMYK
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = K_wm[I_rng]
+        #Get original CMYK set and replace only replaceable values in set
+        #Necessary so unique values can be restored
+        CMYK_BG =  pix_rpl.copy() #pix_dbl[I_rpl, :][Iunq]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)   
+        #Handle K's lower than Kmin
+        I_rng = K_wm < Kminmax[:,0]
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = Kminmax[I_rng,0]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)
+        #Handle K's greater than Kmax
+        I_rng = K_wm > Kminmax[:,1]
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = Kminmax[I_rng,1]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)
+        #Fix out of range values and return image
+        CMYK_BG[CMYK_BG < 0] = 0
+        CMYK_BG[CMYK_BG > 100] = 100
+        pix_new = pix_dbl.copy()
+        pix_new[I_rpl,:] = CMYK_BG * 2.55
+        pix_new_ui8 = pix_new.astype(np.uint8)
+        im_new = Image.fromarray(pix_new_ui8.reshape((np.size(pix, 0), np.size(pix, 1), 4)))
+        im_new.mode = 'CMYK'
+        return im_new
+    
+    elif method==3:
+        #Keeps watermarked K everywhere
+        #Finds solution for watermarked K where it exists.
+        #Elswhere finds solution for closest existing K (min or max) and keeps watermarked K
+        #Code identical to method 2, except additional last statements in "Handle K's lower.."
+        #and "Handle K's greater.." which keep watermarked K values.
+        
+        #First handle K's where solutions exist, same code as in first part of method 1.
+        K_wm = pixwm_dbl[I_rpl,3]/2.55
+        I_rng = np.logical_and(K_wm >= Kminmax[:,0], K_wm <= Kminmax[:,1])
+           
+        #Transform LabK->CMYK
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = K_wm[I_rng]
+        #Get original CMYK set and replace only replaceable values in set
+        #Necessary so unique values can be restored
+        CMYK_BG =  pix_rpl.copy() #pix_dbl[I_rpl, :][Iunq]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK) 
+        #TODO FIX.. LabK to CMYK LUT returns Kout != Kin, so until fixed,
+        #replace Kout's with watermarked K's (same as Kin's)
+        #First test shows that this attempt of a workaround does not fix K
+        #Compare K channels in WM and GCR images in Photoshop 
+        CMYK_BG[I_rng, 3] = K_wm[I_rng]
+        
+        #Handle K's lower than Kmin
+        I_rng = K_wm < Kminmax[:,0]
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = Kminmax[I_rng,0]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)
+        CMYK_BG[I_rng, 3] = K_wm[I_rng]
+        #Handle K's greater than Kmax
+        I_rng = K_wm > Kminmax[:,1]
+        LabK = np.ndarray(shape=(np.sum(I_rng), 4), dtype=ctypes.c_double, order='F')
+        LabK[:, 0:3] = pix_Lab_gm[I_rng, :]
+        LabK[:, 3] = Kminmax[I_rng,1]
+        CMYK_BG[I_rng, :] = self.lk2cform.apply(LabK)
+        CMYK_BG[I_rng, 3] = K_wm[I_rng]
+        #Fix out of range values and return image
+        CMYK_BG[CMYK_BG < 0] = 0
+        CMYK_BG[CMYK_BG > 100] = 100
+        pix_new = pix_dbl.copy()        
+        pix_new[I_rpl,:] = CMYK_BG * 2.55
+        #Keep all watermarked K's, even in non-replaceable colors?
+        #pix_new[:,3] = pixwm_dbl[:,3]
+        pix_new_ui8 = pix_new.astype(np.uint8)
+        im_new = Image.fromarray(pix_new_ui8.reshape((np.size(pix, 0), np.size(pix, 1), 4)))
+        im_new.mode = 'CMYK'
+        return im_new
+        
+    else:
+        #No need to explicitly return None. Python returns None if there is no
+        #return statement.
+        return None
+    
 
   # Destructor 
   def delete(self): 
