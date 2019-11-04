@@ -19,11 +19,17 @@ from multiprocessing import Queue as PQueue
 import queue
 
 # Source Directory
-srcFolder = 'TestSetFull/'
+srcFolder = 'TestSetGCRMethod/'
 # Source Path
 srcPth = Path(srcFolder).resolve()
 
+dstFolder = Path(srcFolder+'gcr').resolve()
+Path(dstFolder).mkdir(exist_ok = True)
+
 def procImg(img):
+    
+    # imgName = f"{str(dstFolder)}/gcr-{img.name}"
+
     # Read original image
     imgOriginal = WaterMark.imread(img)
     print(img)
@@ -44,6 +50,15 @@ def procImg(img):
         
     # GCR Masking
     imgGCR = WaterMark.gcrMasking(imgOriginal, imgMarked)
+
+    # Creating image from array
+    imgPIL = Image.fromarray(imgGCR)
+
+    imgPIL.mode = 'CMYK'
+    imgWithProfile = ImageCms.buildTransform('profiles/ISOcoated_v2_eci.icc', 
+                                             'profiles/ISOcoated_v2_eci.icc', 'CMYK', 'CMYK')
+    imgFinal = ImageCms.applyTransform(imgPIL, imgWithProfile)
+    # imgFinal.save(f"{imgName}", format = 'TIFF')
     
     #CROPPING
     #CROPPING
@@ -215,5 +230,5 @@ if __name__ == '__main__':
     # stack all rows fo the array to create dataframe, pass titles for columns
     metricDataframe = pd.DataFrame(np.row_stack(results),columns=metricValues)   
     print(metricDataframe.tail())
-    metricDataframe.to_pickle('metricDataFrameGCR.pkl')
-    metricDataframe.to_csv('metricDataFrameGCR.csv')
+    metricDataframe.to_pickle('metricDataFrameGCR-IFOptimal-1-gcr.pkl')
+    metricDataframe.to_csv('metricDataFrameGCR-IFOptimal-1-gcr.csv') 

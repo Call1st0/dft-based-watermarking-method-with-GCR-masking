@@ -515,8 +515,9 @@ class WaterMark:
             ndarray -- masked image
         """
         gcrmask = wmgcr.wmgcr(profileName)
-        rpl = gcrmask.isReplaceable(orig,15,0) 
-        imgMasked = gcrmask.transformImage(orig, marked, rpl)
+        # rpl = gcrmask.isReplaceable(orig,15,0)
+        MethodGCR = 1
+        imgMasked = gcrmask.transformImage(orig, marked, MethodGCR, 0, 100)
         gcrmask.delete()
         print('finished masking')
         return np.asarray(imgMasked)

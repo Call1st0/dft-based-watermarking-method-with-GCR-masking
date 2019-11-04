@@ -19,7 +19,7 @@ from multiprocessing import Queue as PQueue
 import queue
 
 # Source Directory
-srcFolder = 'TestSetFull/'
+srcFolder = 'TestSetGCRMethod/'
 # Source Path
 srcPth = Path(srcFolder).resolve()
 
@@ -40,7 +40,7 @@ def procImg(img):
     ImpactFactor = wObject.findImpactFactor(imgOriginal, rangePSNR = (35.0,40.0))
     
     # Mark image
-    imgMarked = wObject.embedMark(imgOriginal, factor = ImpactFactor)
+    imgMarked = wObject.embedMark(imgOriginal, factor = 10000)
     
     #CROPPING
     #CROPPING
@@ -212,5 +212,5 @@ if __name__ == '__main__':
     # stack all rows fo the array to create dataframe, pass titles for columns
     metricDataframe = pd.DataFrame(np.row_stack(results),columns=metricValues)   
     print(metricDataframe.tail())
-    metricDataframe.to_pickle('metricDataFrameMarked.pkl')
-    metricDataframe.to_csv('metricDataFrameMarked.csv')
+    metricDataframe.to_pickle('metricDataFrameMarked-IF10000.pkl')
+    metricDataframe.to_csv('metricDataFrameMarked-IF10000.csv')
