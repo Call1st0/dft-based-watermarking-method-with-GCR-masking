@@ -1,3 +1,4 @@
 bin/cmyklut.bin filter=lfs diff=lfs merge=lfs -text
 bin/phaser/*.bin filter=lfs diff=lfs merge=lfs -text
 bin/*.bin filter=lfs diff=lfs merge=lfs -text
+bin/ISOcoated/*.bin filter=lfs diff=lfs merge=lfs -text
