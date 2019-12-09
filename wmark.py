@@ -100,6 +100,7 @@ class WaterMark:
         
         plt.show()
 
+    # TODO Make readable regardless of image profile.
     @staticmethod
     def imread(imgName):
         """ read image and return np array """
@@ -429,14 +430,14 @@ class WaterMark:
         correlation = plt.xcorr(mark[:, 0], vector[:, 0])
         return correlation
 
-    def findImpactFactor(self, img, rangePSNR=(38, 39), length=200, frequencies='MEDIUM'):
+    def findImpactFactor(self, img, rangePSNR=(38, 42), length=200, frequencies='MEDIUM'):
         """find impact factor that will return PSNR quality in given range
         
         Arguments:
             img {ndarray} -- host image
         
         Keyword Arguments:
-            rangePSNR {tuple of ints} -- range in dB (default: {(40,45)})
+            rangePSNR {tuple of ints} -- range in dB (default: {(38 ,42)})
             length {int} -- length of embedded 1D vector (default: {200})
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
         
@@ -444,7 +445,7 @@ class WaterMark:
             [float] -- impact factor for which encoded image will have given quality
         """
         # Defining range of Impact Factor values as a tuple
-        arrImpFct = (50, 4000)
+        arrImpFct = (50, 20000)
 
         # Defining left (lowest) and right (highest) values from tuple
         l = arrImpFct[0]
@@ -464,18 +465,22 @@ class WaterMark:
 
             # Calculating PSNR value
             imgMarked = self.embedMark(img, length, frequencies, impactFactor)
-            psnrMarked = msr.compare_psnr(img, imgMarked)
+            imgBlind = self.embedMark(img, length, frequencies, 0) #TODO Find a more elegant solution to solve input img and marked img PSNR
+            psnrMarked = msr.compare_psnr(imgBlind, imgMarked)
 
             if psnrMarked > rangePSNR[1]:
                 l = mid
             elif psnrMarked < rangePSNR[0]:
                 r = mid
             else:
+                print(psnrMarked)
+                print(impactFactor)
                 return impactFactor
 
         # If something unexpected occurs, return value of 1000
         # else:
         print("Error: Unable to find. Set Impact Factor to 1000.")
+        print(psnrMarked)
         return 1000
 
     # TODO the method covert image to lab but accuracy is low. 
@@ -487,7 +492,7 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def profileCmyk2srgb(img,profileCmyk='profiles/ISOcoated_v2_eci.icc'):
+    def profileCmyk2srgb(img,profileCmyk='profiles/phaserArgyll191119.icm'):
         """convert from CMYK to sRGB color space using Cmyk profile
         
         Arguments:
@@ -503,21 +508,21 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def gcrMasking(orig, marked, profileName='ISOcoated_v2_eci.icc'):
+    def gcrMasking(orig, marked, profileName='phaserArgyll191119.icm'):
         """GCR based method for masking artefacts introduced by watermark
         
         Arguments:
             orig {ndarray} -- original image in CMYK color space
             marked {ndarray} -- marked image in CMYK color space
-            profileName {string} -- icc profile neaded for calculation (default: {'ISOcoated_v2_eci.icc'})
+            profileName {string} -- icc profile neaded for calculation (default: {'phaserArgyll191119.icm'})
         
         Returns:
             ndarray -- masked image
         """
         gcrmask = wmgcr.wmgcr(profileName)
         # rpl = gcrmask.isReplaceable(orig,15,0)
-        MethodGCR = 1
-        imgMasked = gcrmask.transformImage(orig, marked, MethodGCR, 0, 100)
+        MethodGCR = 2
+        imgMasked = gcrmask.transformImage(orig, marked, MethodGCR, 1, 0, 100)
         gcrmask.delete()
         print('finished masking')
         return np.asarray(imgMasked)
