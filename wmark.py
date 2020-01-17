@@ -571,7 +571,7 @@ class WaterMark:
 
     @staticmethod
     def labPSNR(imgZero, imgProcessed):
-        """GCR based method for masking artefacts introduced by watermark
+        """Method for transforming input CMYK images into LAB color space and computing their corresponding PSNR value.
         
         Arguments:
             imgZero {ndarray} -- image processed with zero Impact Factor value
