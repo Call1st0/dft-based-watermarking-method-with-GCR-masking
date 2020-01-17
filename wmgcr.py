@@ -34,7 +34,7 @@ class wmgcr:
     self.repCMYmin=0
     self.repKmax=100
     #Set total ink limit
-    self.TIL = 400
+    self.TIL = 400 
     
     # Setup input and output folders
     self.prof_name = prof_name

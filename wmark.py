@@ -35,6 +35,10 @@ import queue
 import pandas as pd
 import wmgcr
 
+import gcrpywrap as gw
+import ctypes
+from pathlib import Path
+
 
 class WaterMark:
 
@@ -563,4 +567,45 @@ class WaterMark:
         pool.join()
 
         # stack all rows fo the array to create dataframe 
-        return pd.DataFrame(np.row_stack(results))   
+        return pd.DataFrame(np.row_stack(results))
+
+    @staticmethod
+    def labPSNR(imgZero, imgProcessed):
+        """GCR based method for masking artefacts introduced by watermark
+        
+        Arguments:
+            imgZero {ndarray} -- image processed with zero Impact Factor value
+            imgProcessed {ndarray} -- processed (marked or GCR) image
+        
+        Returns:
+            {float} -- PSNR value
+        """
+        # Creating cfAtoB object from gcrpywrap
+        profpath = Path('profiles/phaserArgyll191119.icm')
+        cfAtoB = gw.cform(profpath.resolve().as_posix(), 'AtoB1')
+
+        # Reshape image arrays for cfAtoB method to work
+        imgZeroReshape = np.reshape(imgZero, (512 * 512, 4))
+        imgProcessedReshape = np.reshape(imgProcessed, (512*512, 4))
+
+        # Transform image arrays for cfAtoB method to work
+        imgZeroReshape = imgZeroReshape.astype(ctypes.c_double) / 2.55
+        imgProcessedReshape = imgProcessedReshape.astype(ctypes.c_double) / 2.55
+
+        # Create LAB from CMYK
+        labOrig = cfAtoB.apply(imgZeroReshape)
+        labMarked = cfAtoB.apply(imgProcessedReshape)
+
+        # Normalize A and B channels to interval from 0 to 1
+        labOrig[:, 1:3] = (labOrig[:, 1:3] + 128) / 255
+        labMarked[:, 1:3] = (labMarked[:, 1:3] + 128) / 255
+
+        # Normalize L channel to interval from 0 to 1
+        labOrig[:, 0] = labOrig[:, 0] / 100
+        labMarked[:, 0] = labMarked[:, 0] / 100
+
+        # Delete object
+        cfAtoB.delete()
+
+        # Return PSNR value
+        return msr.compare_psnr(labOrig, labMarked, data_range = 1)
