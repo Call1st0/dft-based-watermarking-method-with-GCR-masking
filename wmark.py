@@ -500,7 +500,7 @@ class WaterMark:
         while r >= l:
             counter+=1
             print(counter)
-            if counter >= 10:
+            if counter >= 15:
                 break
             # Defining the midpoint between l and r
             mid = l + (r - l) / 2
@@ -534,7 +534,7 @@ class WaterMark:
         # else:
         print("Error: Unable to find. Set Impact Factor to 1000.")
         print(psnrMarked)
-        return 1000
+        return [1000, psnrMarked]
 
     # TODO the method covert image to lab but accuracy is low. 
     @staticmethod
