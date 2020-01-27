@@ -434,11 +434,52 @@ class WaterMark:
         correlation = plt.xcorr(mark[:, 0], vector[:, 0])
         return correlation
 
-    def findImpactFactor(self, img, rangePSNR=(38, 42), length=200, frequencies='MEDIUM'):
+    @staticmethod
+    def labPSNR(imgZero, imgProcessed):
+        """Method for transforming input CMYK images into LAB color space and computing their corresponding PSNR value.
+        
+        Arguments:
+            imgZero {ndarray} -- image processed with zero Impact Factor value
+            imgProcessed {ndarray} -- processed (marked or GCR) image
+        
+        Returns:
+            {float} -- PSNR value
+        """
+        # Creating cfAtoB object from gcrpywrap
+        profpath = Path('profiles/phaserArgyll191119.icm')
+        cfAtoB = gw.cform(profpath.resolve().as_posix(), 'AtoB1')
+
+        # Reshape image arrays for cfAtoB method to work
+        imgZeroReshape = np.reshape(imgZero, (512 * 512, 4))
+        imgProcessedReshape = np.reshape(imgProcessed, (512*512, 4))
+
+        # Transform image arrays for cfAtoB method to work
+        imgZeroReshape = imgZeroReshape.astype(ctypes.c_double) / 2.55
+        imgProcessedReshape = imgProcessedReshape.astype(ctypes.c_double) / 2.55
+
+        # Create LAB from CMYK
+        labOrig = cfAtoB.apply(imgZeroReshape)
+        labMarked = cfAtoB.apply(imgProcessedReshape)
+
+        # Normalize A and B channels to interval from 0 to 1
+        labOrig[:, 1:3] = (labOrig[:, 1:3] + 128) / 255
+        labMarked[:, 1:3] = (labMarked[:, 1:3] + 128) / 255
+
+        # Normalize L channel to interval from 0 to 1
+        labOrig[:, 0] = labOrig[:, 0] / 100
+        labMarked[:, 0] = labMarked[:, 0] / 100
+
+        # Delete object
+        cfAtoB.delete()
+
+        # Return PSNR value
+        return msr.compare_psnr(labOrig, labMarked, data_range = 1)
+
+    def findImpactFactor(self, img, rangePSNR=(38, 42), length=200, frequencies='MEDIUM', colorMode='CMYK'):
         """find impact factor that will return PSNR quality in given range
         
         Arguments:
-            img {ndarray} -- host image
+            img {ndarray} -- host image 
         
         Keyword Arguments:
             rangePSNR {tuple of ints} -- range in dB (default: {(38 ,42)})
@@ -470,16 +511,24 @@ class WaterMark:
             # Calculating PSNR value
             imgMarked = self.embedMark(img, length, frequencies, impactFactor)
             imgBlind = self.embedMark(img, length, frequencies, 0) #TODO Find a more elegant solution to solve input img and marked img PSNR
-            psnrMarked = msr.compare_psnr(imgBlind, imgMarked)
+            
+            #TODO Check with Ante if this works
+            if colorMode == 'CMYK':
+                psnrMarked = msr.compare_psnr(imgBlind, imgMarked)
+            elif colorMode == 'LAB':
+                psnrMarked = self.labPSNR(imgBlind, imgMarked)
+            else:
+                raise AttributeError("Unknown color mode. Use 'CMYK', or 'LAB'.")
+
 
             if psnrMarked > rangePSNR[1]:
                 l = mid
             elif psnrMarked < rangePSNR[0]:
                 r = mid
             else:
-                print(psnrMarked)
-                print(impactFactor)
-                return impactFactor
+                # print(psnrMarked)
+                # print(impactFactor)
+                return [impactFactor, psnrMarked];
 
         # If something unexpected occurs, return value of 1000
         # else:
@@ -568,44 +617,3 @@ class WaterMark:
 
         # stack all rows fo the array to create dataframe 
         return pd.DataFrame(np.row_stack(results))
-
-    @staticmethod
-    def labPSNR(imgZero, imgProcessed):
-        """Method for transforming input CMYK images into LAB color space and computing their corresponding PSNR value.
-        
-        Arguments:
-            imgZero {ndarray} -- image processed with zero Impact Factor value
-            imgProcessed {ndarray} -- processed (marked or GCR) image
-        
-        Returns:
-            {float} -- PSNR value
-        """
-        # Creating cfAtoB object from gcrpywrap
-        profpath = Path('profiles/phaserArgyll191119.icm')
-        cfAtoB = gw.cform(profpath.resolve().as_posix(), 'AtoB1')
-
-        # Reshape image arrays for cfAtoB method to work
-        imgZeroReshape = np.reshape(imgZero, (512 * 512, 4))
-        imgProcessedReshape = np.reshape(imgProcessed, (512*512, 4))
-
-        # Transform image arrays for cfAtoB method to work
-        imgZeroReshape = imgZeroReshape.astype(ctypes.c_double) / 2.55
-        imgProcessedReshape = imgProcessedReshape.astype(ctypes.c_double) / 2.55
-
-        # Create LAB from CMYK
-        labOrig = cfAtoB.apply(imgZeroReshape)
-        labMarked = cfAtoB.apply(imgProcessedReshape)
-
-        # Normalize A and B channels to interval from 0 to 1
-        labOrig[:, 1:3] = (labOrig[:, 1:3] + 128) / 255
-        labMarked[:, 1:3] = (labMarked[:, 1:3] + 128) / 255
-
-        # Normalize L channel to interval from 0 to 1
-        labOrig[:, 0] = labOrig[:, 0] / 100
-        labMarked[:, 0] = labMarked[:, 0] / 100
-
-        # Delete object
-        cfAtoB.delete()
-
-        # Return PSNR value
-        return msr.compare_psnr(labOrig, labMarked, data_range = 1)
