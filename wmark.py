@@ -268,9 +268,9 @@ class WaterMark:
         mark = self.pseudoGen(length)
         radius = WaterMark.frequency2Radius(img_y, frequencies)
 
-        metricArray = np.zeros(32)
+        metricArray = np.zeros(64)
         counter = 0
-        for ind in range(int(radius-16), int(radius+16)):
+        for ind in range(int(radius-32), int(radius+32)):
             vec = WaterMark.extractMark(magnitude, ind)
             reshapedMark = WaterMark.generateReshapedMark(mark, magnitude, ind)
             if metric == 'COV':
@@ -499,7 +499,7 @@ class WaterMark:
         # This while statement is just a measure of precaution. r <= l should be True
         while r >= l:
             counter+=1
-            print(counter)
+            # print(counter)
             if counter >= 15:
                 break
             # Defining the midpoint between l and r
