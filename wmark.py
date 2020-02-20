@@ -245,7 +245,7 @@ class WaterMark:
         return skimage.img_as_ubyte(img_m)
 
     def decodeMark(self, img, metric, length=200, frequencies='MEDIUM'):
-        """Method for extracting ana decoding hidden watermark
+        """Method for decoding hidden watermark
         
         Arguments:
             img {ndarray} -- host image
@@ -256,7 +256,24 @@ class WaterMark:
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
         
         Returns:
-            {float} -- correlation value of the extracted vector and generated watermark
+            {float} -- covariation / correlation value of the extracted vector and generated watermark
+        """
+        metricArray = self.corrArray(img, metric, length, frequencies)
+        return np.amax(metricArray)
+
+    def corrArray(self, img, metric, length=200, frequencies='MEDIUM'):
+        """Method for extracting entire array of possible decetion values
+        
+        Arguments:
+            img {ndarray} -- host image
+        
+        Keyword Arguments:
+            metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
+            length {int} -- length of embeded (watermark) 1D vector  (default: {200})
+            frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
+        
+        Returns:
+            {float} -- array of covariation / correlation values of the extracted vector and generated watermark
         """
         img_y, image_type = WaterMark.getMarkChannel(img)
         
@@ -279,7 +296,7 @@ class WaterMark:
                 metricArray[counter] = WaterMark.corrMark(reshapedMark, vec)
             counter += 1
 
-        return np.amax(metricArray)
+        return metricArray
 
     @staticmethod
     def extractMark(img, radius):
