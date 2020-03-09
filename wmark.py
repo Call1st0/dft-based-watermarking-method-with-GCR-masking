@@ -18,7 +18,7 @@
 
 
 import skimage
-import skimage.measure as msr
+import skimage.metrics as msr
 import skimage.color as color
 import skimage.transform as trs
 import numpy as np
@@ -34,7 +34,7 @@ from multiprocessing import Queue as PQueue
 import queue
 import pandas as pd
 import wmgcr
-
+from outliers import smirnov_grubbs as grubbs
 import gcrpywrap as gw
 import ctypes
 from pathlib import Path
@@ -55,7 +55,7 @@ class WaterMark:
         fig, axes = plt.subplots(nrows=1, ncols=3, sharex='all', sharey='all')
 
         
-        label = 'PSNR: {:.2f}, SSIM: {:.2f}'
+        label = 'PSNR: {:.2f}'
 
         # check if the image is grayscale, RGB or CMYK image
         if len(originalImg.shape) == 2:
@@ -81,25 +81,20 @@ class WaterMark:
             raise TypeError(
                 "Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
                 
-        psnr_orig = msr.compare_psnr(displayOriginalImg, displayOriginalImg)
-        ssim_orig = msr.compare_ssim(displayOriginalImg, displayOriginalImg, multichannel = True)
-
-        psnr_mod = msr.compare_psnr(displayOriginalImg, displayModifiedImg)
-        ssim_mod = msr.compare_ssim(displayOriginalImg, displayModifiedImg, multichannel = True)
-
-        psnr_mask = msr.compare_psnr(displayOriginalImg, displayMaskedImg)
-        ssim_mask = msr.compare_ssim(displayOriginalImg, displayMaskedImg, multichannel = True)
+        psnr_orig = msr.peak_signal_noise_ratio(displayOriginalImg, displayOriginalImg)
+        psnr_mod = msr.peak_signal_noise_ratio(displayOriginalImg, displayModifiedImg)
+        psnr_mask = msr.peak_signal_noise_ratio(displayOriginalImg, displayMaskedImg)
 
         axes[0].imshow(displayOriginalImg)
-        axes[0].set_xlabel(label.format(psnr_orig, ssim_orig))
+        axes[0].set_xlabel(label.format(psnr_orig))
         axes[0].set_title('Original image')
 
         axes[1].imshow(displayModifiedImg)
-        axes[1].set_xlabel(label.format(psnr_mod, ssim_mod))
+        axes[1].set_xlabel(label.format(psnr_mod))
         axes[1].set_title('Modified image')
 
         axes[2].imshow(displayMaskedImg)
-        axes[2].set_xlabel(label.format(psnr_mask, ssim_mask))
+        axes[2].set_xlabel(label.format(psnr_mask))
         axes[2].set_title('Masked image')
         
         plt.show()
@@ -298,6 +293,26 @@ class WaterMark:
 
         return metricArray
 
+    def detectOutlier(self, img, metric, alpha=0.0001):
+        """Method for finding outliers in array of correlation values
+        
+        Arguments:
+            img {ndarray} -- host image
+            metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
+            alpha {float} -- significance level used for grubbs' test
+        Returns:
+            {boolean} -- If at least one outlier is detected, returns True; If there are no outliers, returns False
+        """
+        PossibleOutliers = WaterMark.corrArray(self, img, metric)
+        GrubbsDetecion = grubbs.max_test_outliers(PossibleOutliers, alpha = alpha) 
+
+        if len(GrubbsDetecion) == 0:
+            return False
+        elif len(GrubbsDetecion) != 0:
+            return True
+        else:
+            raise AttributeError("Outlier test not valid. Please try again.")
+
     @staticmethod
     def extractMark(img, radius):
         """ Method for extracting vector from the ndarray given the radius
@@ -452,18 +467,19 @@ class WaterMark:
         return correlation
 
     @staticmethod
-    def labPSNR(imgZero, imgProcessed):
+    def labPSNR(imgZero, imgProcessed, profileName):
         """Method for transforming input CMYK images into LAB color space and computing their corresponding PSNR value.
         
         Arguments:
             imgZero {ndarray} -- image processed with zero Impact Factor value
             imgProcessed {ndarray} -- processed (marked or GCR) image
+            profileName {str} -- profile name
         
         Returns:
             {float} -- PSNR value
         """
         # Creating cfAtoB object from gcrpywrap
-        profpath = Path('profiles/phaserArgyll191119.icm')
+        profpath = Path('profiles/' + profileName)
         cfAtoB = gw.cform(profpath.resolve().as_posix(), 'AtoB1')
 
         # Reshape image arrays for cfAtoB method to work
@@ -490,7 +506,7 @@ class WaterMark:
         cfAtoB.delete()
 
         # Return PSNR value
-        return msr.compare_psnr(labOrig, labMarked, data_range = 1)
+        return msr.peak_signal_noise_ratio(labOrig, labMarked, data_range = 1)
 
     def findImpactFactor(self, img, rangePSNR=(38, 42), length=200, frequencies='MEDIUM', colorMode='CMYK'):
         """find impact factor that will return PSNR quality in given range
@@ -531,7 +547,7 @@ class WaterMark:
             
             #TODO Check with Ante if this works
             if colorMode == 'CMYK':
-                psnrMarked = msr.compare_psnr(imgBlind, imgMarked)
+                psnrMarked = msr.peak_signal_noise_ratio(imgBlind, imgMarked)
             elif colorMode == 'LAB':
                 psnrMarked = self.labPSNR(imgBlind, imgMarked)
             else:
@@ -578,13 +594,13 @@ class WaterMark:
         return np.array(ImageCms.applyTransform(pilImg,cform))
 
     @staticmethod
-    def gcrMasking(orig, marked, profileName='phaserArgyll191119.icm'):
+    def gcrMasking(orig, marked, profileName):
         """GCR based method for masking artefacts introduced by watermark
         
         Arguments:
             orig {ndarray} -- original image in CMYK color space
             marked {ndarray} -- marked image in CMYK color space
-            profileName {string} -- icc profile neaded for calculation (default: {'phaserArgyll191119.icm'})
+            profileName {string} -- icc profile neaded for calculation 
         
         Returns:
             ndarray -- masked image
@@ -594,7 +610,6 @@ class WaterMark:
         MethodGCR = 2
         imgMasked = gcrmask.transformImage(orig, marked, MethodGCR, 1, 0, 100)
         gcrmask.delete()
-        print('finished masking')
         return np.asarray(imgMasked)
 
     def parallelProcessing(func, srcFolder):
