@@ -342,6 +342,7 @@ class WaterMark:
             vec[ind, 0] = np.amax(mask)
         return vec
 
+    @staticmethod
     def generateReshapedMark(mark, img, radius=128):
         """Generator for watermark mask
         
@@ -368,6 +369,7 @@ class WaterMark:
 
         return WaterMark.extractMark(watermark_mask, radius)
 
+    @staticmethod
     def frequency2Radius(img, frequencies):
         """convert frequency to radius
 
@@ -612,6 +614,7 @@ class WaterMark:
         gcrmask.delete()
         return np.asarray(imgMasked)
 
+    @staticmethod
     def parallelProcessing(func, srcFolder):
         """Utility method for concurent execution of a function on imgs in source folder
         
