@@ -9,14 +9,14 @@ Run install script to compile code from Cpp directory, install dependencies and 
 foo@bar:~$ sudo bash install.sh
 ```
 
-Create conda environment using [environment.yml](https://github.com/Call1st0/dft-based-watermarking-method/blob/master/environment.yml) file and activate it.
+Create conda environment using [environment.yml](https://github.com/Call1st0/dft-based-watermarking-method-with-GCR-masking/blob/master/environments.yml) file and activate it.
 
 ```Console
 foo@bar:~$ conda env create -f environment.yml
 foo@bar:~$ conda activate wmgcr
 ```
 
-Finally run [demo.py](https://github.com/Call1st0/dft-based-watermarking-method/blob/master/python/demo.py) to get the idea how the method works.
+Finally run [demo.py](https://github.com/Call1st0/dft-based-watermarking-method-with-GCR-masking/blob/master/python/demo.py) to get the idea how the method works.
 
 ```Console
 foo@bar:~$ python demo.py
