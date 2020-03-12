@@ -3,7 +3,7 @@ The demand for security of shared digital and printed images is increasing year 
 
 ## Installation
 
-Run install script to compile code from Cpp directory, install dependencies and create link library *libwmgcr* neaded to run the code. Make sure to have pkg-config available on the system since it used to check for the existence of the libraries neaded.
+Run [install.sh](https://github.com/Call1st0/dft-based-watermarking-method-with-GCR-masking/blob/master/install.sh) script to compile code from Cpp directory, install dependencies and create link library *libwmgcr* neaded to run the code. Make sure to have pkg-config available on the system since it is used to check for the existence of the libraries neaded.
 
 ```Console
 foo@bar:~$ sudo bash install.sh
