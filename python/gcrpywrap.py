@@ -25,14 +25,14 @@ def PrintProgress(current, total):
 
 # Load correct dynamic library depending on the system
 if platform == "linux" or platform == "linux2":
-    dynamicLibrary = 'libGcr.so'
+    dynamicLibrary = "libwmgcr.so"
 elif platform == "darwin":
-    dynamicLibrary = 'libGcr.dylib'
+    dynamicLibrary = 'libwmgcr.dylib'
 elif platform == "win32":
-    dynamicLibrary = 'libGcr.dll' #TODO fix this to make usuable on win platform
+    dynamicLibrary = 'libwmgcr.dll' #TODO fix this to make usuable on win platform
 
 # Setup LittleCMS wrapper
-lcmswrap = cdll.LoadLibrary('lib/'+ dynamicLibrary)
+lcmswrap = cdll.LoadLibrary(dynamicLibrary)
 lcmswrap.makecform.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
 lcmswrap.makecform.restype = ctypes.c_void_p
 lcmswrap.applycform.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_double), ctypes.POINTER(ctypes.c_double), ctypes.c_size_t]
@@ -47,7 +47,7 @@ lcmswrap.deleteabscform.argtypes = [ctypes.c_void_p]
 lcmswrap.deleteabscform.restype = None
 
 #Setup RevInt wrapper
-revint = cdll.LoadLibrary('lib/'+ dynamicLibrary)
+revint = cdll.LoadLibrary(dynamicLibrary)
 revint.makeRevInt.argtypes = [ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
 revint.makeRevInt.restype = ctypes.c_void_p
 revint.deleteRevInt.argtypes=[ctypes.c_void_p]

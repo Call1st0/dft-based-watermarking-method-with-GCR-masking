@@ -1,0 +1,43 @@
+name: wmgcrproba
+channels:
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - ca-certificates=2020.1.1=0
+  - certifi=2019.11.28=py38_0
+  - ld_impl_linux-64=2.33.1=h53a641e_7
+  - libedit=3.1.20181209=hc058e9b_0
+  - libffi=3.2.1=hd88cf55_4
+  - libgcc-ng=9.1.0=hdf63c60_0
+  - libstdcxx-ng=9.1.0=hdf63c60_0
+  - ncurses=6.2=he6710b0_0
+  - openssl=1.1.1d=h7b6447c_4
+  - pip=20.0.2=py38_1
+  - python=3.8.1=h0371630_1
+  - readline=7.0=h7b6447c_5
+  - setuptools=46.0.0=py38_0
+  - sqlite=3.31.1=h7b6447c_0
+  - tk=8.6.8=hbc83047_0
+  - wheel=0.34.2=py38_0
+  - xz=5.2.4=h14c3975_4
+  - zlib=1.2.11=h7b6447c_3
+  - pip:
+    - cycler==0.10.0
+    - decorator==4.4.2
+    - imageio==2.8.0
+    - kiwisolver==1.1.0
+    - matplotlib==3.2.0
+    - networkx==2.4
+    - numpy==1.18.1
+    - outlier-utils==0.0.3
+    - pandas==1.0.1
+    - pillow==7.0.0
+    - pyparsing==2.4.6
+    - python-dateutil==2.8.1
+    - pytz==2019.3
+    - pywavelets==1.1.1
+    - scikit-image==0.16.2
+    - scipy==1.4.1
+    - six==1.14.0
+
+

@@ -1,14 +1,26 @@
-UNAME := $(shell uname)
+CXXFLAGS := -fPIC -O3 -g
+LDFLAGS = -shared -llcms2 -llapack -lblas -larmadillo
+CXX := g++
+NAME := wmgcr
+PREFIX = /usr
 
-ifeq ($(UNAME), Linux)
-libGcr.so: Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o
-	$(CXX) -shared $^ -o $@ -Wl,--whole-archive -llcms2 -Wl,--no-whole-archive -Wl,--whole-archive -llapack -Wl,--no-whole-archive -Wl,--whole-archive -lblas -Wl,--no-whole-archive -Wl,--whole-archive -larmadillo -Wl,--no-whole-archive
+lib = lib$(NAME).so
+src = $(wildcard *.cpp)
+obj = $(src:.cpp=.o)
 
-Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o : CXXFLAGS+=-fPIC
-endif
-ifeq ($(UNAME), Darwin)
-libGcr.dylib: Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o
-	$(CXX) -shared $^ -o $@ -Wl,-force_load /usr/local/lib/liblcms2.a  -Wl,-noall_load -Wl,-force_load /usr/local/opt/lapack/lib/libblas.dylib -Wl,-noall_load -Wl,-force_load /usr/local/opt/lapack/lib/liblapack.dylib -Wl,-noall_load -Wl,-force_load /usr/local/lib/libarmadillo.dylib -Wl,-noall_load
+$(lib): $(obj)
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-Gamut.o GCR_py_wrap.o lcmswrap.o RevInt.o : CXXFLAGS+=-fPIC
-endif
+.PHONY: clean
+clean:
+	rm -f $(obj) $(lib) 
+
+.PHONY: install
+install: $(solib)
+	mkdir -p $(DESTDIR)$(PREFIX)/lib
+	cp $(lib) $(DESTDIR)$(PREFIX)/lib/$(lib)
+
+.PHONY: uninstall
+uninstall:
+	rm -f $(DESTDIR)$(PREFIX)/lib/$(lib)
+
