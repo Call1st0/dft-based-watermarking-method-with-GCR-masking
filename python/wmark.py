@@ -50,40 +50,45 @@ class WaterMark:
         pass
 
     @staticmethod
-    def compareImages(originalImg, modifiedImg, maskedImg):
+    def compareImages(originalImg, modifiedImg, maskedImg, profilePath):
         """ Helper method for displaying comparison of images """
         fig, axes = plt.subplots(nrows=1, ncols=3, sharex='all', sharey='all')
 
-        
         label = 'PSNR: {:.2f}'
 
         # check if the image is grayscale, RGB or CMYK image
         if len(originalImg.shape) == 2:
             displayOriginalImg = originalImg
-            displayModifiedImg = modifiedImg 
+            displayModifiedImg = modifiedImg
             displayMaskedImg = maskedImg
         elif len(originalImg.shape) == 3:
             if originalImg.shape[2] == 4:  # CMYK image
                 print('Unable to show images correctly in cmyk > coverting to srgb')
-                displayOriginalImg = WaterMark.profileCmyk2srgb(originalImg)
-                displayModifiedImg = WaterMark.profileCmyk2srgb(modifiedImg)
-                displayMaskedImg = WaterMark.profileCmyk2srgb(maskedImg)
-                
+                displayOriginalImg = WaterMark.profileCmyk2srgb(
+                    originalImg, profileCmyk=profilePath)
+                displayModifiedImg = WaterMark.profileCmyk2srgb(
+                    modifiedImg, profileCmyk=profilePath)
+                displayMaskedImg = WaterMark.profileCmyk2srgb(
+                    maskedImg, profileCmyk=profilePath)
+
             elif originalImg.shape[2] == 3:  # RBG image
                 displayOriginalImg = originalImg
-                displayModifiedImg = modifiedImg 
+                displayModifiedImg = modifiedImg
                 displayMaskedImg = maskedImg
-                
+
             else:
                 raise TypeError(
                     "Image has wrong number of channels. Only 3 or 4 channels allowed")
         else:
             raise TypeError(
                 "Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
-                
-        psnr_orig = msr.peak_signal_noise_ratio(displayOriginalImg, displayOriginalImg)
-        psnr_mod = msr.peak_signal_noise_ratio(displayOriginalImg, displayModifiedImg)
-        psnr_mask = msr.peak_signal_noise_ratio(displayOriginalImg, displayMaskedImg)
+
+        psnr_orig = msr.peak_signal_noise_ratio(
+            displayOriginalImg, displayOriginalImg)
+        psnr_mod = msr.peak_signal_noise_ratio(
+            displayOriginalImg, displayModifiedImg)
+        psnr_mask = msr.peak_signal_noise_ratio(
+            displayOriginalImg, displayMaskedImg)
 
         axes[0].imshow(displayOriginalImg)
         axes[0].set_xlabel(label.format(psnr_orig))
@@ -96,7 +101,7 @@ class WaterMark:
         axes[2].imshow(displayMaskedImg)
         axes[2].set_xlabel(label.format(psnr_mask))
         axes[2].set_title('Masked image')
-        
+
         plt.show()
 
     # TODO Make readable regardless of image profile.
@@ -217,8 +222,9 @@ class WaterMark:
             watermark_mask[x2, y2] = mark[ind]*np.mean(mask_down)
 
         # add watermark mask multiplied by factor to the original magnitude
-        magnitude_m = magnitude+factor*watermark_mask #TODO modify code to beter use implementation factor maybe use mean magnitude of an image
-    
+        # TODO modify code to beter use implementation factor maybe use mean magnitude of an image
+        magnitude_m = magnitude+factor*watermark_mask
+
         # Transformation to Spatial domain
         img_y_marked = self.outputProc(magnitude_m, phase)
 
@@ -241,15 +247,15 @@ class WaterMark:
 
     def decodeMark(self, img, metric, length=200, frequencies='MEDIUM'):
         """Method for decoding hidden watermark
-        
+
         Arguments:
             img {ndarray} -- host image
-        
+
         Keyword Arguments:
             metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
             length {int} -- length of embeded (watermark) 1D vector  (default: {200})
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
-        
+
         Returns:
             {float} -- covariation / correlation value of the extracted vector and generated watermark
         """
@@ -258,23 +264,23 @@ class WaterMark:
 
     def corrArray(self, img, metric, length=200, frequencies='MEDIUM'):
         """Method for extracting entire array of possible decetion values
-        
+
         Arguments:
             img {ndarray} -- host image
-        
+
         Keyword Arguments:
             metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
             length {int} -- length of embeded (watermark) 1D vector  (default: {200})
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
-        
+
         Returns:
             {float} -- array of covariation / correlation values of the extracted vector and generated watermark
         """
         img_y, image_type = WaterMark.getMarkChannel(img)
-        
-        if not img_y.shape == (512,512):
-            img_y = trs.resize(img_y,(512,512))
-        
+
+        if not img_y.shape == (512, 512):
+            img_y = trs.resize(img_y, (512, 512))
+
         magnitude, phase = self.inputProc(img_y)
 
         mark = self.pseudoGen(length)
@@ -295,7 +301,7 @@ class WaterMark:
 
     def detectOutlier(self, img, metric, alpha=0.0001):
         """Method for finding outliers in array of correlation values
-        
+
         Arguments:
             img {ndarray} -- host image
             metric {str} -- metric of choice for decoding values - covariation or correlation ('COV', 'CORR')
@@ -304,7 +310,8 @@ class WaterMark:
             {boolean} -- If at least one outlier is detected, returns True; If there are no outliers, returns False
         """
         PossibleOutliers = WaterMark.corrArray(self, img, metric)
-        GrubbsDetecion = grubbs.max_test_outliers(PossibleOutliers, alpha = alpha) 
+        GrubbsDetecion = grubbs.max_test_outliers(
+            PossibleOutliers, alpha=alpha)
 
         if len(GrubbsDetecion) == 0:
             return False
@@ -345,14 +352,14 @@ class WaterMark:
     @staticmethod
     def generateReshapedMark(mark, img, radius=128):
         """Generator for watermark mask
-        
+
         Arguments:
             mark {ndarray} -- 1D PRND vector generated using pseudoGen method
             img {ndarray} -- host image
-        
+
         Keyword Arguments:
             radius {int} -- radius at which to embed PRND vector (default: {128})
-        
+
         Returns:
             {ndarray} -- watermark mask created with PRND vector embedded to given radius
         """
@@ -396,7 +403,7 @@ class WaterMark:
 
         return radius
 
-    #TODO Make mark and vector real 1D-arrays, instead of 2D-arrays with empty 2nd dim.
+    # TODO Make mark and vector real 1D-arrays, instead of 2D-arrays with empty 2nd dim.
     @staticmethod
     def covarMark(mark, vector):
         """Cross covariation of two 1D sequences. Measures the similarity between two vectors 
@@ -449,7 +456,7 @@ class WaterMark:
             vector_2D = np.reshape(vector_roll, (vector_lenght, 1))
             max_corr[counter] = np.corrcoef(mark[:, 0], vector_2D[:, 0])[0][1]
             counter += 1
-        return np.amax(max_corr)        
+        return np.amax(max_corr)
 
     @staticmethod
     def xcorrMark(mark, vector):
@@ -469,19 +476,19 @@ class WaterMark:
         return correlation
 
     @staticmethod
-    def labPSNR(imgZero, imgProcessed, profileName):
+    def labPSNR(imgZero, imgProcessed, profilePath):
         """Method for transforming input CMYK images into LAB color space and computing their corresponding PSNR value.
-        
+
         Arguments:
             imgZero {ndarray} -- image processed with zero Impact Factor value
             imgProcessed {ndarray} -- processed (marked or GCR) image
             profileName {str} -- profile name
-        
+
         Returns:
             {float} -- PSNR value
         """
         # Creating cfAtoB object from gcrpywrap
-        profpath = Path('profiles/' + profileName)
+        profpath = Path(profilePath)
         cfAtoB = gw.cform(profpath.resolve().as_posix(), 'AtoB1')
 
         # Reshape image arrays for cfAtoB method to work
@@ -490,7 +497,8 @@ class WaterMark:
 
         # Transform image arrays for cfAtoB method to work
         imgZeroReshape = imgZeroReshape.astype(ctypes.c_double) / 2.55
-        imgProcessedReshape = imgProcessedReshape.astype(ctypes.c_double) / 2.55
+        imgProcessedReshape = imgProcessedReshape.astype(
+            ctypes.c_double) / 2.55
 
         # Create LAB from CMYK
         labOrig = cfAtoB.apply(imgZeroReshape)
@@ -508,19 +516,19 @@ class WaterMark:
         cfAtoB.delete()
 
         # Return PSNR value
-        return msr.peak_signal_noise_ratio(labOrig, labMarked, data_range = 1)
+        return msr.peak_signal_noise_ratio(labOrig, labMarked, data_range=1)
 
     def findImpactFactor(self, img, rangePSNR=(38, 42), length=200, frequencies='MEDIUM', colorMode='CMYK'):
         """find impact factor that will return PSNR quality in given range
-        
+
         Arguments:
             img {ndarray} -- host image 
-        
+
         Keyword Arguments:
             rangePSNR {tuple of ints} -- range in dB (default: {(38 ,42)})
             length {int} -- length of embedded 1D vector (default: {200})
             frequencies {str} -- frequencies at which to search for vector ('LOW', 'MEDIUM', 'HIGH') (default: {'MEDIUM'})
-        
+
         Returns:
             [float] -- impact factor for which encoded image will have given quality
         """
@@ -533,7 +541,7 @@ class WaterMark:
         counter = 0
         # This while statement is just a measure of precaution. r <= l should be True
         while r >= l:
-            counter+=1
+            counter += 1
             # print(counter)
             if counter >= 15:
                 break
@@ -545,16 +553,17 @@ class WaterMark:
 
             # Calculating PSNR value
             imgMarked = self.embedMark(img, length, frequencies, impactFactor)
-            imgBlind = self.embedMark(img, length, frequencies, 0) #TODO Find a more elegant solution to solve input img and marked img PSNR
-            
-            #TODO Check with Ante if this works
+            # TODO Find a more elegant solution to solve input img and marked img PSNR
+            imgBlind = self.embedMark(img, length, frequencies, 0)
+
+            # TODO Check with Ante if this works
             if colorMode == 'CMYK':
                 psnrMarked = msr.peak_signal_noise_ratio(imgBlind, imgMarked)
             elif colorMode == 'LAB':
                 psnrMarked = self.labPSNR(imgBlind, imgMarked)
             else:
-                raise AttributeError("Unknown color mode. Use 'CMYK', or 'LAB'.")
-
+                raise AttributeError(
+                    "Unknown color mode. Use 'CMYK', or 'LAB'.")
 
             if psnrMarked > rangePSNR[1]:
                 l = mid
@@ -563,7 +572,7 @@ class WaterMark:
             else:
                 # print(psnrMarked)
                 # print(impactFactor)
-                return [impactFactor, psnrMarked];
+                return [impactFactor, psnrMarked]
 
         # If something unexpected occurs, return value of 1000
         # else:
@@ -571,43 +580,45 @@ class WaterMark:
         print(psnrMarked)
         return [1000, psnrMarked]
 
-    # TODO the method covert image to lab but accuracy is low. 
+    # TODO the method covert image to lab but accuracy is low.
     @staticmethod
-    def profileCmyk2lab(img,profileCmyk):
+    def profileCmyk2lab(img, profileCmyk):
         pilImg = Image.fromarray(img)
         labProfile = ImageCms.createProfile('LAB')
-        cform = ImageCms.buildTransform(profileCmyk, labProfile, 'CMYK', 'LAB', renderingIntent=1)
-        return np.array(ImageCms.applyTransform(pilImg,cform))
+        cform = ImageCms.buildTransform(
+            profileCmyk, labProfile, 'CMYK', 'LAB', renderingIntent=1)
+        return np.array(ImageCms.applyTransform(pilImg, cform))
 
     @staticmethod
-    def profileCmyk2srgb(img,profileCmyk='profiles/phaserArgyll191119.icm'):
+    def profileCmyk2srgb(img, profileCmyk):
         """convert from CMYK to sRGB color space using Cmyk profile
-        
+
         Arguments:
             img {ndarray} -- image in CMYK color space
             profileCmyk {string} -- path to cmyk profile
-        
+
         Returns:
             ndarray -- image in sRGB color space
         """
         pilImg = Image.fromarray(img)
         srgbProfile = ImageCms.createProfile('sRGB')
-        cform = ImageCms.buildTransform(profileCmyk, srgbProfile, 'CMYK', 'RGB', renderingIntent=1)
-        return np.array(ImageCms.applyTransform(pilImg,cform))
+        cform = ImageCms.buildTransform(
+            profileCmyk, srgbProfile, 'CMYK', 'RGB', renderingIntent=1)
+        return np.array(ImageCms.applyTransform(pilImg, cform))
 
     @staticmethod
-    def gcrMasking(orig, marked, profileName):
+    def gcrMasking(orig, marked, profilePath):
         """GCR based method for masking artefacts introduced by watermark
-        
+
         Arguments:
             orig {ndarray} -- original image in CMYK color space
             marked {ndarray} -- marked image in CMYK color space
             profileName {string} -- icc profile neaded for calculation 
-        
+
         Returns:
             ndarray -- masked image
         """
-        gcrmask = wmgcr.wmgcr(profileName)
+        gcrmask = wmgcr.wmgcr(profilePath)
         # rpl = gcrmask.isReplaceable(orig,15,0)
         MethodGCR = 2
         imgMasked = gcrmask.transformImage(orig, marked, MethodGCR, 1, 0, 100)
@@ -617,11 +628,11 @@ class WaterMark:
     @staticmethod
     def parallelProcessing(func, srcFolder):
         """Utility method for concurent execution of a function on imgs in source folder
-        
+
         Arguments:
             func {function} -- defined function that has only one parameter (img)
             srcFolder {string} -- path to folder with images
-        
+
         Returns:
             dataFrame -- every row represents another image in folder, 
                          num of cols depend on defined function
@@ -632,23 +643,24 @@ class WaterMark:
 
         my_q = PQueue()
 
-        pool = multiprocessing.Pool() # no parameter provided in constructor, use all threads
-        results = pool.map(func, listOfImgs) # return data as list of arrays
+        # no parameter provided in constructor, use all threads
+        pool = multiprocessing.Pool()
+        results = pool.map(func, listOfImgs)  # return data as list of arrays
 
         its = []
         while True:
             try:
                 print("Waiting")
                 i = my_q.get(True, 5)
-                print("Found %s from the queue!" %i)
+                print("Found %s from the queue!" % i)
                 its.append(i)
             except queue.Empty:
                 print("Caught queue empty, done")
                 break
-        print("Processed %d items, completed." %len(its))
+        print("Processed %d items, completed." % len(its))
 
         pool.close()
         pool.join()
 
-        # stack all rows fo the array to create dataframe 
+        # stack all rows fo the array to create dataframe
         return pd.DataFrame(np.row_stack(results))
