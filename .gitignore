@@ -1,10 +1,4 @@
-*.tif
-*.tiff
-*.bmp
-scratchpad.py
-transform.py
 __pycache__/
 .vscode/
-.ipynb_checkpoints/
 Tests/
 Results/
