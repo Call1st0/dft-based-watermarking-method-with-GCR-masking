@@ -1,5 +1,5 @@
 CXXFLAGS := -fPIC -O3 -g
-LDFLAGS = -shared -llcms2 -llapack -lblas -larmadillo
+LDFLAGS = -shared -llcms2 -larmadillo
 CXX := g++
 NAME := wmgcr
 PREFIX = /usr

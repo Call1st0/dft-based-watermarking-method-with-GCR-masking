@@ -24,8 +24,6 @@ fi
 }
 
 # Installing libraries if needed
-install_library lapack
-install_library blas
 install_library armadillo
 install_library lcms2
 

@@ -83,23 +83,13 @@ class WaterMark:
             raise TypeError(
                 "Image isn't of correct type. Only grayscale, RGB and CMYK allowed")
 
-        psnr_orig = msr.peak_signal_noise_ratio(
-            displayOriginalImg, displayOriginalImg)
-        psnr_mod = msr.peak_signal_noise_ratio(
-            displayOriginalImg, displayModifiedImg)
-        psnr_mask = msr.peak_signal_noise_ratio(
-            displayOriginalImg, displayMaskedImg)
-
         axes[0].imshow(displayOriginalImg)
-        axes[0].set_xlabel(label.format(psnr_orig))
         axes[0].set_title('Original image')
 
         axes[1].imshow(displayModifiedImg)
-        axes[1].set_xlabel(label.format(psnr_mod))
         axes[1].set_title('Modified image')
 
         axes[2].imshow(displayMaskedImg)
-        axes[2].set_xlabel(label.format(psnr_mask))
         axes[2].set_title('Masked image')
 
         plt.show()

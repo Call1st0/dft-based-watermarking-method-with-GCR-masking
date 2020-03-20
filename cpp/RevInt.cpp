@@ -311,7 +311,7 @@ mat RevInt::interp(vec labpt, vec kvals)
 			if (kval >= std::min(sol_k[rngidx][0], sol_k[rngidx][1]) && kval <= std::max(sol_k[rngidx][0], sol_k[rngidx][1]))
 			{
 				//kfct factor between min and max K within one simplex
-				double kfct;
+				double kfct = 0;
 				if (sol_k[rngidx][0] != sol_k[rngidx][1]) //Avoid division by zero if min=max in current simplex
 				{
 					kfct = (kval - std::min(sol_k[rngidx][0], sol_k[rngidx][1])) / (std::max(sol_k[rngidx][0], sol_k[rngidx][1]) - std::min(sol_k[rngidx][0], sol_k[rngidx][1]));
@@ -612,7 +612,7 @@ mat RevInt::interpex(vec labpt, vec kvals)
 			if (kval >= std::min(sol_k[rngidx][0], sol_k[rngidx][1]) && kval <= std::max(sol_k[rngidx][0], sol_k[rngidx][1]))
 			{
 				//kfct factor between min and max K within one simplex
-				double kfct;
+				double kfct = 0;
 				if (sol_k[rngidx][0] != sol_k[rngidx][1]) //Avoid division by zero if min=max in current simplex
 				{
 					kfct = (kval - std::min(sol_k[rngidx][0], sol_k[rngidx][1])) / (std::max(sol_k[rngidx][0], sol_k[rngidx][1]) - std::min(sol_k[rngidx][0], sol_k[rngidx][1]));
@@ -921,7 +921,7 @@ mat RevInt::interpexLut(vec labpt, vec kvals, std::vector<arma::s32_mat> *sol_si
 			if (kval >= std::min(sol_k[rngidx][0], sol_k[rngidx][1]) && kval <= std::max(sol_k[rngidx][0], sol_k[rngidx][1]))
 			{
 				//kfct factor between min and max K within one simplex
-				double kfct;
+				double kfct = 0;
 				if (sol_k[rngidx][0] != sol_k[rngidx][1]) //Avoid division by zero if min=max in current simplex
 				{
 					kfct = (kval - std::min(sol_k[rngidx][0], sol_k[rngidx][1])) / (std::max(sol_k[rngidx][0], sol_k[rngidx][1]) - std::min(sol_k[rngidx][0], sol_k[rngidx][1]));

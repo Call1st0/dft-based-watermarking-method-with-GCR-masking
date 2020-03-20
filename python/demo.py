@@ -42,10 +42,3 @@ print('Watermark is embeded: {}\nMax correlation value is {:.3f}'.format(
 
 # Show images
 WaterMark.compareImages(img, img_marked, img_masked, profile_path)
-
-# Calculate and print psrn and ssim in cmyk
-psnr_marked_cmyk = msr.peak_signal_noise_ratio(img, img_marked)
-psnr_masked_cmyk = msr.peak_signal_noise_ratio(img, img_masked)
-
-print(f'Marked Image CMYK >>  PSNR = {psnr_marked_cmyk:.2f}')
-print(f'Masked Image CMYK >>  PSNR = {psnr_marked_cmyk:.2f}')
