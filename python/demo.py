@@ -8,7 +8,6 @@ from pathlib import Path
 path = Path(__file__).resolve()
 image_path = str(path.parents[1])+'/TestSet/cmykExample.tif'
 profile_path = str(path.parents[1]) + '/profiles/ISOcoated_v2_eci.icc'
-print(profile_path)
 
 # Create wmark object with seed 5
 wmarkObj = WaterMark(5)

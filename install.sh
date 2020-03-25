@@ -28,7 +28,7 @@ install_library armadillo
 install_library lcms2
 
 # compile and save library
-echo "Compiling amd linking"
+echo "Compiling and linking"
 if cd cpp; then
     if make; then
         echo "Library compiled and linked sucesfully!"
@@ -41,7 +41,7 @@ if cd cpp; then
     if [ "$answer" != "${answer#[Yy]}" ] ;then
         make install
     else
-        echo >&2 "Library is neaded for the on the system. Aborting."
+        echo >&2 "Library is neaded on the system. Aborting."
         exit 1
     fi
 else
